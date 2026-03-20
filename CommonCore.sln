@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonCore", "CommonCore.csproj", "{7340D239-59E8-8542-9A04-EEDEA2935552}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YATM", "..\YetAnotherTraderMod\YATM.csproj", "{2D64E15E-34B5-D54D-45D0-9F0851568168}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7340D239-59E8-8542-9A04-EEDEA2935552}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7340D239-59E8-8542-9A04-EEDEA2935552}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7340D239-59E8-8542-9A04-EEDEA2935552}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7340D239-59E8-8542-9A04-EEDEA2935552}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D64E15E-34B5-D54D-45D0-9F0851568168}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D64E15E-34B5-D54D-45D0-9F0851568168}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D64E15E-34B5-D54D-45D0-9F0851568168}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D64E15E-34B5-D54D-45D0-9F0851568168}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DDE800E5-EDBE-40B3-83F0-16B01DA71923}
+	EndGlobalSection
+EndGlobal

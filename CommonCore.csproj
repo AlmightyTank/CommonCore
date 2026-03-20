@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<RootNamespace>CommonCore</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<OutputType>Library</OutputType>
+		<Version>1.0.0</Version>
+		<!-- The two lines below will set the output path for the binaries -->
+		<OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)\</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="SPTarkov.Common" Version="4.0.1" />
+		<PackageReference Include="SPTarkov.DI" Version="4.0.1" />
+		<PackageReference Include="SPTarkov.Server.Core" Version="4.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Items\Metadata\" />
+		<Folder Include="Loading\" />
+		<Folder Include="Core\" />
+		<Folder Include="Constants\" />
+	</ItemGroup>
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<Exec Command="call &quot;$(ProjectDir)deploy.cmd&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetDir)&quot; &quot;$(AssemblyName)&quot;" />
+	</Target>
+</Project>
