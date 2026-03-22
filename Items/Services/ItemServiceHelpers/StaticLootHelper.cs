@@ -7,6 +7,7 @@ using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Utils;
 using CommonCore.Items.Models;
+using static CommonCore.Items.Models.ItemCreationRequest;
 
 namespace CommonCore.Items.Services.ItemServiceHelpers;
 

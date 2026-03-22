@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using SPTarkov.Server.Core.Models.Common;
 
-namespace CommonCore.Items.Models;
+namespace CommonCore.Traders.Models;
 
 public class CustomQuestSideConfig
 {

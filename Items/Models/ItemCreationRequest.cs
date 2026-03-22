@@ -1,10 +1,11 @@
-using System.Text.Json.Serialization;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Eft.Hideout;
+using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Mod;
+using System.Text.Json.Serialization;
 
 namespace CommonCore.Items.Models;
 
@@ -38,7 +39,10 @@ public class ItemCreationRequest
     public bool AddToTraders { get; set; }
 
     [JsonPropertyName("traders")]
-    public Dictionary<string, Dictionary<string, ConfigTraderScheme>>? Traders { get; set; }
+    public Dictionary<string, ConfigTraderScheme>? Traders { get; set; }
+
+    [JsonPropertyName("assortId")]
+    public string? AssortId { get; set; }
 
     [JsonPropertyName("traderId")]
     public string? TraderId { get; set; }
@@ -51,6 +55,14 @@ public class ItemCreationRequest
 
     [JsonPropertyName("buyRestrictionMax")]
     public int? BuyRestrictionMax { get; set; }
+    [JsonPropertyName("questRewards")]
+    public QuestRewardConfig[]? QuestRewards { get; set; }
+    [JsonPropertyName("addToQuestRewards")]
+    public bool AddToQuestRewards { get; set; }
+    [JsonPropertyName("questAssorts")]
+    public QuestAssortConfig[]? QuestAssorts { get; set; }
+    [JsonPropertyName("addToQuestAssorts")]
+    public bool AddToQuestAssorts { get; set; }
 
     [JsonPropertyName("addPresetInsteadOfItem")]
     public bool AddPresetInsteadOfItem { get; set; }
@@ -78,10 +90,6 @@ public class ItemCreationRequest
 
     [JsonPropertyName("addToModSlots")]
     public bool AddToModSlots { get; set; }
-
-    // support legacy typo
-    [JsonPropertyName("addtoModSlots")]
-    public bool AddtoModSlots { get; set; }
 
     [JsonPropertyName("addtoModSlotsCloneId")]
     public string? AddtoModSlotsCloneId { get; set; }
@@ -208,13 +216,123 @@ public class ItemCreationRequest
 
     public void Normalize()
     {
-        AddToPreset = AddToPreset || AddWeaponPreset;
-        AddToModSlots = AddToModSlots || AddtoModSlots;
-        AddMasteries = AddMasteries || Masteries != null;
-
         WeaponCloneMasteriesId ??= ItemTplToClone;
         WeaponCloneChamberId ??= ItemTplToClone;
         MagCloneCartridgeId ??= ItemTplToClone;
         AddtoModSlotsCloneId ??= ItemTplToClone;
+    }
+
+    public class QuestRewardConfig
+    {
+        [JsonPropertyName("questId")]
+        public string QuestId { get; set; } = string.Empty;
+        [JsonPropertyName("rewardType")]
+        public string RewardType { get; set; } = "Item";
+        [JsonPropertyName("count")]
+        public int Count { get; set; } = 1;
+        [JsonPropertyName("findInRaid")]
+        public bool FindInRaid { get; set; }
+        [JsonPropertyName("isHidden")]
+        public bool IsHidden { get; set; }
+        [JsonPropertyName("currencyTpl")]
+        public string? CurrencyTpl { get; set; }
+        [JsonPropertyName("presetId")]
+        public string? PresetId { get; set; }
+    }
+
+    public class QuestAssortConfig
+    {
+        [JsonPropertyName("traderId")]
+        public string TraderId { get; set; } = string.Empty;
+        [JsonPropertyName("questId")]
+        public string QuestId { get; set; } = string.Empty;
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Success";
+    }
+
+    public class ConflictingInfos
+    {
+        [JsonPropertyName("id")]
+        public MongoId Id { get; set; }
+        [JsonPropertyName("tgtSlotName")]
+        public required string TgtSlotName { get; set; }
+        [JsonPropertyName("itemsAddtoSlot")]
+        public string[]? ItemsAddToSlot { get; set; }
+    }
+
+    public class EmptyPropSlotConfig
+    {
+        [JsonPropertyName("itemToAddTo")]
+        public string ItemToAddTo { get; set; } = string.Empty;
+
+        [JsonPropertyName("modSlot")]
+        public string ModSlot { get; set; } = string.Empty;
+    }
+
+    public class CopySlotInfo
+    {
+        [JsonPropertyName("id")]
+        public virtual MongoId Id { get; set; }
+        [JsonPropertyName("newSlotName")]
+        public required virtual string NewSlotName { get; set; }
+        [JsonPropertyName("tgtSlotName")]
+        public virtual string? TgtSlotName { get; set; }
+        [JsonPropertyName("itemsAddtoSlot")]
+        public virtual string[]? ItemsAddToSlot { get; set; }
+        [JsonPropertyName("required")]
+        public virtual bool? Required { get; set; }
+    }
+
+    public class StaticLootContainerEntry
+    {
+        public string ContainerName { get; set; } = string.Empty;
+        public int Probability { get; set; }
+        public bool ReplaceProbabilityIfExists { get; set; } = true;
+    }
+
+    public class ConfigTraderScheme
+    {
+        [JsonPropertyName("loyal_level_items")]
+        public required ConfigBarterSettings ConfigBarterSettings { get; set; }
+
+        [JsonPropertyName("barter_scheme")]
+        public required List<ConfigBarterScheme> Barters { get; set; } = new();
+    }
+
+    public class ConfigBarterSettings
+    {
+        [JsonPropertyName("loyalLevel")]
+        public required int LoyalLevel { get; set; }
+
+        [JsonPropertyName("unlimitedCount")]
+        public required bool UnlimitedCount { get; set; }
+
+        [JsonPropertyName("stackObjectsCount")]
+        public required int StackObjectsCount { get; set; }
+
+        [JsonPropertyName("buyRestrictionMax")]
+        public int? BuyRestrictionMax { get; set; }
+    }
+
+    public class ConfigBarterScheme
+    {
+        [JsonPropertyName("count")]
+        public virtual double? Count { get; set; }
+
+        [JsonPropertyName("_tpl")]
+        public virtual string Template { get; set; } = string.Empty;
+
+        [JsonPropertyName("onlyFunctional")]
+        public virtual bool? OnlyFunctional { get; set; }
+
+        [JsonPropertyName("sptQuestLocked")]
+        public virtual bool? SptQuestLocked { get; set; }
+
+        [JsonPropertyName("level")]
+        public virtual int? Level { get; set; }
+
+        [JsonPropertyName("side")]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public virtual DogtagExchangeSide? Side { get; set; }
     }
 }

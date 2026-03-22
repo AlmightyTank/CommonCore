@@ -1,4 +1,4 @@
-namespace CommonCore.Items.Models;
+namespace CommonCore.Traders.Models;
 
 public class CustomQuestTimeWindow
 {

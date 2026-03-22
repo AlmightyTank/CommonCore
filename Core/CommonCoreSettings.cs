@@ -10,7 +10,10 @@ public sealed class CommonCoreSettings
 
     public MongoId DefaultTraderId { get; private set; } = FallbackTraderId;
 
-    public void SetDefaultTrader(MongoId traderId)
+    // true when a trader mod explicitly takes over all item routing
+    public bool ForceAllItemsToDefaultTrader { get; private set; }
+
+    public void SetDefaultTrader(MongoId traderId, bool forceAllItems = true)
     {
         if (string.IsNullOrWhiteSpace(traderId))
         {
@@ -18,10 +21,12 @@ public sealed class CommonCoreSettings
         }
 
         DefaultTraderId = traderId;
+        ForceAllItemsToDefaultTrader = forceAllItems;
     }
 
     public void ResetDefaultTrader()
     {
         DefaultTraderId = FallbackTraderId;
+        ForceAllItemsToDefaultTrader = false;
     }
 }

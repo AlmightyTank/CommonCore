@@ -31,7 +31,6 @@ public static class ItemCreationRequestFactory
             PresetIdToAdd = config.PresetIdToAdd,
 
             AddWeaponPreset = config.AddWeaponPreset,
-            AddToPreset = config.AddToPreset,
             Presets = config.Presets,
 
             Masteries = config.Masteries,
@@ -39,7 +38,6 @@ public static class ItemCreationRequestFactory
             WeaponCloneMasteriesId = config.WeaponCloneMasteriesId,
 
             AddToModSlots = config.AddToModSlots,
-            AddtoModSlots = config.AddtoModSlots,
             AddtoModSlotsCloneId = config.AddtoModSlotsCloneId,
             ModSlot = config.ModSlot,
             AddtoConflicts = config.AddtoConflicts,

@@ -1,13 +1,12 @@
 using CommonCore.Constants;
 using CommonCore.Core;
 using CommonCore.Helpers;
-using CommonCore.Items.Models;
+using CommonCore.Traders.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Extensions;
 using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Routers;
@@ -17,7 +16,7 @@ using System.Reflection;
 using System.Text.Json;
 using Path = System.IO.Path;
 
-namespace CommonCore.Items.Services;
+namespace CommonCore.Traders.Service;
 
 [Injectable(InjectionType.Singleton)]
 public sealed class CoreQuestService(

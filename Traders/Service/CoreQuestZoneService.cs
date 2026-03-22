@@ -1,11 +1,11 @@
 using CommonCore.Helpers;
-using CommonCore.Items.Models;
+using CommonCore.Traders.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Utils;
 using System.Reflection;
 
-namespace CommonCore.Items.Services;
+namespace CommonCore.Traders.Service;
 
 [Injectable(InjectionType.Singleton)]
 public sealed class CoreQuestZoneService(
@@ -31,7 +31,7 @@ public sealed class CoreQuestZoneService(
             return;
         }
 
-        List<CustomQuestZone> zones = await LoadZoneFiles(finalPath);
+        var zones = await LoadZoneFiles(finalPath);
         RegisterZones(zones);
     }
 

@@ -1,21 +1,17 @@
 using CommonCore.Constants;
 using CommonCore.Core;
 using CommonCore.Helpers;
-using CommonCore.Items.Factories;
 using CommonCore.Items.Models;
 using CommonCore.Items.Services.ItemServiceHelpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Spt.Server;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Services.Mod;
 using System.Reflection;
 using AssortHelper = CommonCore.Items.Services.ItemServiceHelpers.AssortHelper;
-using LogLevel = SPTarkov.Server.Core.Models.Spt.Logging.LogLevel;
 using Path = System.IO.Path;
+using QuestRewardHelper = CommonCore.Items.Services.ItemServiceHelpers.QuestRewardHelper;
 
 namespace CommonCore.Items.Services;
 
@@ -53,7 +49,10 @@ public class CommonCoreItemService(
     AssortHelper assortHelper,
     ScriptedConflictHelper scriptedConflictHelper,
     LocaleHelper localeHelper,
-    EquipmentSlotHelper equipmentSlotHelper
+    EquipmentSlotHelper equipmentSlotHelper,
+    QuestRewardHelper questRewardHelper,
+    QuestAssortHelper questAssortHelper,
+    CommonCoreSettings settings
 )
 {
     private readonly List<ItemCreationRequest> _deferredModSlotRequests = [];
@@ -244,16 +243,29 @@ public class CommonCoreItemService(
             return false;
         }
     }
+    private static bool ShouldProcessTraderRouting(ItemCreationRequest request)
+    {
+        return request.AddToTraders
+            || (request.Traders != null);
+    }
 
     private void ProcessItemFeatures(ItemCreationRequest request)
     {
+
+        debugLogHelper.LogService("CommonCoreItemService", $"Processing features for {request.NewId}... - {request.AddToQuestAssorts}");
         if (db == null)
         {
             return;
         }
 
-        if (request.AddToTraders)
+        if (ShouldProcessTraderRouting(request))
             traderItemHelper.Process(request);
+
+        if (request.AddToQuestRewards)
+            questRewardHelper.Process(request);
+
+        if (request.AddToQuestAssorts)
+            questAssortHelper.Process(request);
 
         if (request.AddToPreset)
             weaponPresetHelper.Process(request);
@@ -371,7 +383,7 @@ public class CommonCoreItemService(
                 caliberHelper.Process(request);
                 debugLogHelper.LogService("CommonCoreItemService", $"Processed caliber config for {request.NewId}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 debugLogHelper.LogError("CommonCoreItemService", $"Failed processing caliber config for {request.NewId}");
             }
@@ -414,7 +426,7 @@ public class CommonCoreItemService(
                 modSlotHelper.Process(request);
                 debugLogHelper.LogService("CommonCoreItemService", $"Processed mod slots for {request.NewId}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 debugLogHelper.LogError("CommonCoreItemService", $"Failed processing mod slots for {request.NewId}");
             }
@@ -457,7 +469,7 @@ public class CommonCoreItemService(
                 secureFiltersHelper.Process(request);
                 debugLogHelper.LogService("CommonCoreItemService", $"Processed secure filters for {request.NewId}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 debugLogHelper.LogError("CommonCoreItemService", $"Failed processing secure filters for {request.NewId}");
             }

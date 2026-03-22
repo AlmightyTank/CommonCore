@@ -2,6 +2,8 @@ using CommonCore.Helpers;
 using CommonCore.Items.Models;
 using CommonCore.Items.Services;
 using CommonCore.Items.Services.ItemServiceHelpers;
+using CommonCore.Traders.Models;
+using CommonCore.Traders.Service;
 using Microsoft.Extensions.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
