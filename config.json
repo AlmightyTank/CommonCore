@@ -1,0 +1,16 @@
+{
+    "Debug": {
+        "Enabled": true,
+        "ForceAll": true,
+        "Files": {
+            "ConfigHelper": true,
+            "QuestAssortHelper": true,
+            "TraderBootstrapService": true,
+            "QuestRewardHelper": true
+        },
+        "Functions": {
+            "QuestAssortHelper.Process": true,
+            "QuestRewardHelper.Process": true
+        }
+    }
+}

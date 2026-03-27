@@ -1,14 +1,15 @@
 using CommonCore.Core;
-using CommonCore.Items.Models;
 using SPTarkov.DI.Annotations;
+using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Utils;
-using static CommonCore.Items.Models.ItemCreationRequest;
+using SPTarkov.Server.Core.Services;
+using static CommonCore.Models.CommonCoreItemConfig;
 
 namespace CommonCore.Items.Services;
 
-[Injectable(InjectionType.Singleton)]
+[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 5)]
 public sealed class CompatibilityService
 {
     private const string AllSlotsKey = "AllSlots";
@@ -16,17 +17,16 @@ public sealed class CompatibilityService
     private const string AmmoKey = "Ammo";
 
     private readonly ISptLogger<CompatibilityService> _logger;
-    private readonly CommonCoreDb _db;
+    private readonly DatabaseService _databaseService;
 
     private readonly Dictionary<string, Dictionary<MongoId, List<MongoId>>> _compatibilityMapping = [];
 
     public CompatibilityService(
         ISptLogger<CompatibilityService> logger,
-        CommonCoreDb db)
+        DatabaseService databaseService)
     {
         _logger = logger;
-        _db = db;
-        Initialize();
+        _databaseService = databaseService;
     }
 
     public void Initialize()
@@ -37,59 +37,15 @@ public sealed class CompatibilityService
         _compatibilityMapping[AmmoKey] = [];
     }
 
-    public void AddToModSlots(MongoId itemToAdd, MongoId cloneId, string[]? slotNames, bool cloneConflicts)
-    {
-        if (cloneConflicts)
-        {
-            AddMapping(ConflictingItemsKey, cloneId, itemToAdd);
-        }
-
-        if (slotNames == null || slotNames.Length == 0)
-        {
-            AddMapping(AllSlotsKey, cloneId, itemToAdd);
-            return;
-        }
-
-        foreach (var slotName in slotNames)
-        {
-            if (!string.IsNullOrWhiteSpace(slotName))
-            {
-                AddMapping(slotName, cloneId, itemToAdd);
-            }
-        }
-    }
-
     public void AddAmmoClone(MongoId itemToAdd, MongoId cloneId)
     {
         AddMapping(AllSlotsKey, cloneId, itemToAdd);
         AddMapping(AmmoKey, cloneId, itemToAdd);
     }
 
-    public void AddDirectToSlot(MongoId modId, MongoId parentItemId, string slotName)
-    {
-        if (!_db.Items.TryGetValue(parentItemId, out var item) || item.Properties?.Slots == null)
-        {
-            _logger.Error($"Item {parentItemId} not found or has no slots");
-            return;
-        }
-
-        foreach (var slot in item.Properties.Slots)
-        {
-            if (!string.Equals(slot.Name, slotName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            slot.Properties?.Filters?.ElementAtOrDefault(0)?.Filter?.Add(modId);
-            return;
-        }
-
-        _logger.Error($"Item {parentItemId} has no slot named {slotName}");
-    }
-
     public void AddScriptedConflicts(MongoId itemId, ConflictingInfos[] infos)
     {
-        if (!_db.Items.TryGetValue(itemId, out var item) || item.Properties?.ConflictingItems == null)
+        if (!_databaseService.GetItems().TryGetValue(itemId, out var item) || item.Properties?.ConflictingItems == null)
         {
             _logger.Error($"Item {itemId} not found or has no conflicting items list");
             return;
@@ -126,7 +82,7 @@ public sealed class CompatibilityService
 
     public void ProcessCompatibilityInfo()
     {
-        foreach (var (_, item) in _db.Items)
+        foreach (var (_, item) in _databaseService.GetItems())
         {
             if (item.Properties == null)
             {
@@ -225,7 +181,7 @@ public sealed class CompatibilityService
     {
         slot = null;
 
-        if (!_db.Items.TryGetValue(itemId, out var item) || item.Properties?.Slots == null)
+        if (!_databaseService.GetItems().TryGetValue(itemId, out var item) || item.Properties?.Slots == null)
         {
             return false;
         }

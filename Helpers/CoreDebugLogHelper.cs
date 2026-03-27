@@ -1,47 +1,83 @@
-using CommonCore.Traders.Models;
-using SPTarkov.DI.Annotations;
+using CommonCore.Core;
 
 namespace CommonCore.Helpers;
 
-[Injectable]
-public sealed class CoreDebugLogHelper
+public class CoreDebugLogHelper(CommonCoreSettings settings)
 {
-    public void Initialize(string modPath, bool debugEnabled)
-    {
-        LogHelper.Init(modPath);
-        LogHelper.IsDebugEnabled = debugEnabled;
+    private readonly CommonCoreSettings _settings = settings;
 
-        LogHelper.Log($"[CommonCore] Logger initialized. DebugEnabled={debugEnabled}");
+    public bool ShouldLog(string fileName, string? functionName = null)
+    {
+        var debug = _settings.Debug;
+
+        if (!debug.Enabled)
+        {
+            return false;
+        }
+
+        if (debug.ForceAll)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(functionName))
+        {
+            var functionKey = $"{fileName}.{functionName}";
+            if (debug.Functions.TryGetValue(functionKey, out var functionEnabled))
+            {
+                return functionEnabled;
+            }
+        }
+
+        if (debug.Files.TryGetValue(fileName, out var fileEnabled))
+        {
+            return fileEnabled;
+        }
+
+        return false;
     }
 
-    public void Log(string message)
+    public void Log(string fileName, string message, string? functionName = null)
     {
-        LogHelper.Log($"[CommonCore] {message}");
+        if (!ShouldLog(fileName, functionName))
+        {
+            return;
+        }
+
+        Console.WriteLine(BuildPrefix(fileName, functionName) + message);
     }
 
-    public void LogService(string service, string message)
+    public void LogWarning(string fileName, string message, string? functionName = null)
     {
-        LogHelper.LogDebug($"[{service}] {message}");
+        if (!ShouldLog(fileName, functionName))
+        {
+            return;
+        }
+
+        Console.WriteLine(BuildPrefix(fileName, functionName, "WARN") + message);
     }
 
-    public void LogError(string service, string message)
+    public void LogError(string fileName, string message, string? functionName = null)
     {
-        LogHelper.Log($"[ERROR] [{service}] {message}");
+        if (!ShouldLog(fileName, functionName))
+        {
+            return;
+        }
+
+        Console.WriteLine(BuildPrefix(fileName, functionName, "ERROR") + message);
     }
 
-    public void LogConfig(TraderRuntimeSettings settings)
+    public void LogService(string fileName, string message, string? functionName = null)
     {
-        LogHelper.LogDebug("==== Trader Config ====");
-        LogHelper.LogDebug($"MinLevel: {settings.MinLevel}");
-        LogHelper.LogDebug($"UnlockedByDefault: {settings.UnlockedByDefault}");
-        LogHelper.LogDebug($"UnlimitedStock: {settings.UnlimitedStock}");
-        LogHelper.LogDebug($"RandomizeStock: {settings.RandomizeStockAvailable} ({settings.OutOfStockChance}%)");
-        LogHelper.LogDebug($"PriceMultiplier: {settings.PriceMultiplier}");
-        LogHelper.LogDebug($"FleaEnabled: {settings.AddTraderToFleaMarket}");
-        LogHelper.LogDebug($"InsuranceCoef: {settings.InsurancePriceCoef}");
-        LogHelper.LogDebug($"RepairQuality: {settings.RepairQuality}");
-        LogHelper.LogDebug($"RefreshMin: {settings.TraderRefreshMin}");
-        LogHelper.LogDebug($"RefreshMax: {settings.TraderRefreshMax}");
-        LogHelper.LogDebug("=======================");
+        Log(fileName, message, functionName);
+    }
+
+    private static string BuildPrefix(string fileName, string? functionName = null, string level = "DEBUG")
+    {
+        var scope = string.IsNullOrWhiteSpace(functionName)
+            ? fileName
+            : $"{fileName}.{functionName}";
+
+        return $"[CommonCore] [{level}] [{scope}] ";
     }
 }

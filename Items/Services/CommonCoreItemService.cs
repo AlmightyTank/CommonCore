@@ -1,481 +1,269 @@
-using CommonCore.Constants;
 using CommonCore.Core;
 using CommonCore.Helpers;
-using CommonCore.Items.Models;
-using CommonCore.Items.Services.ItemServiceHelpers;
+using CommonCore.Models;
 using SPTarkov.DI.Annotations;
-using SPTarkov.Server.Core.Helpers;
-using SPTarkov.Server.Core.Models.Common;
-using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Services.Mod;
+using SPTarkov.Server.Core.DI;
 using System.Reflection;
-using AssortHelper = CommonCore.Items.Services.ItemServiceHelpers.AssortHelper;
-using Path = System.IO.Path;
-using QuestRewardHelper = CommonCore.Items.Services.ItemServiceHelpers.QuestRewardHelper;
+using System.Text.Json;
 
 namespace CommonCore.Items.Services;
 
-[Injectable(InjectionType.Singleton)]
-public class CommonCoreItemService(
-    CoreDebugLogHelper debugLogHelper,
-    CustomItemService customItemService,
-    CommonCoreDb db,
-    ModHelper modHelper,
-    ConfigHelper configHelper,
-    LoadedItemRegistry loadedItemRegistry,
-    TraderItemHelper traderItemHelper,
-    WeaponPresetHelper weaponPresetHelper,
-    StaticLootHelper staticLootHelper,
-    SpecialSlotsHelper specialSlotsHelper,
-    PosterLootHelper posterLootHelper,
-    ModSlotHelper modSlotHelper,
-    MasteryHelper masteryHelper,
-    InventorySlotHelper inventorySlotHelper,
-    HideoutStatuetteHelper hideoutStatuetteHelper,
-    HideoutPosterHelper hideoutPosterHelper,
-    HallOfFameHelper hallOfFameHelper,
-    GeneratorFuelHelper generatorFuelHelper,
-    CaliberHelper caliberHelper,
-    BotLootHelper botLootHelper,
-    StaticAmmoHelper staticAmmoHelper,
-    EmptyPropSlotHelper emptyPropSlotHelper,
-    SecureFiltersHelper secureFiltersHelper,
-    RandomLootContainerHelper randomLootContainerHelper,
-    SlotCloneHelper slotCloneHelper,
-    SlotAddHelper slotAddHelper,
-    CompatibilityCloneHelper compatibilityCloneHelper,
-    BuffHelper buffHelper,
-    CraftHelper craftHelper,
-    AssortHelper assortHelper,
-    ScriptedConflictHelper scriptedConflictHelper,
-    LocaleHelper localeHelper,
-    EquipmentSlotHelper equipmentSlotHelper,
-    QuestRewardHelper questRewardHelper,
-    QuestAssortHelper questAssortHelper,
-    CommonCoreSettings settings
-)
+[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 5)]
+public sealed class CommonCoreItemService(
+    ItemFeaturePipeline itemFeaturePipeline,
+    CommonCoreSettings settings,
+    CoreDebugLogHelper debugLogHelper)
 {
-    private readonly List<ItemCreationRequest> _deferredModSlotRequests = [];
-    private readonly List<ItemCreationRequest> _deferredSecureFilterRequests = [];
-    private readonly List<ItemCreationRequest> _deferredCaliberRequests = [];
+    private const string FileName = nameof(CommonCoreItemService);
 
-    public async Task CreateCustomItems(Assembly assembly, string? relativePath = null)
+    private readonly ItemFeaturePipeline _itemFeaturePipeline = itemFeaturePipeline;
+    private readonly CommonCoreSettings _settings = settings;
+    private readonly CoreDebugLogHelper _debugLogHelper = debugLogHelper;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        try
-        {
-            var assemblyLocation = modHelper.GetAbsolutePathToModFolder(assembly);
-            var defaultDir = Path.Combine("db", "CustomItems");
-            var finalDir = Path.Combine(assemblyLocation, relativePath ?? defaultDir);
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
+    };
 
-            await CreateCustomItemsFromDirectory(finalDir);
-        }
-        catch (Exception ex)
+    public async Task<int> LoadAndProcessFolder(Assembly modAssembly, string relativeFolderPath)
+    {
+        const string functionName = nameof(LoadAndProcessFolder);
+
+        var modPath = Path.GetDirectoryName(modAssembly.Location);
+        if (string.IsNullOrWhiteSpace(modPath))
         {
-            debugLogHelper.LogError("CommonCoreItemService", $"Error loading custom items: {ex.Message}");
+            _debugLogHelper.LogWarning(
+                FileName,
+                $"Could not resolve mod path for assembly {modAssembly.FullName}",
+                functionName);
+
+            return 0;
         }
+
+        var folderPath = Path.Combine(modPath, relativeFolderPath);
+
+        _debugLogHelper.LogService(
+            FileName,
+            $"Resolved relative folder '{relativeFolderPath}' to '{folderPath}'",
+            functionName);
+
+        return await LoadAndProcessFolder(folderPath);
     }
 
-    public async Task CreateCustomItemsFromDirectory(string directoryPath)
+    public async Task<int> LoadAndProcessFolders(Assembly modAssembly, params string[] relativeFolderPaths)
     {
-        if (!Directory.Exists(directoryPath))
+        const string functionName = nameof(LoadAndProcessFolders);
+
+        if (!_settings.Items.Enabled)
         {
-            debugLogHelper.LogError("CommonCoreItemService", $"Directory not found at {directoryPath}");
-            return;
+            _debugLogHelper.LogService(
+                FileName,
+                "Item processing is disabled by config.",
+                functionName);
+
+            return 0;
         }
 
-        try
+        if (relativeFolderPaths == null || relativeFolderPaths.Length == 0)
         {
-            var itemConfigs = await configHelper.LoadAllItemsJsonFiles<ItemCreationRequest>(directoryPath);
+            _debugLogHelper.LogWarning(
+                FileName,
+                "LoadAndProcessFolders called with no folder paths.",
+                functionName);
 
-            if (itemConfigs.Count == 0)
+            return 0;
+        }
+
+        var totalProcessed = 0;
+
+        _debugLogHelper.LogService(
+            FileName,
+            $"Processing {relativeFolderPaths.Length} folder(s) for assembly '{modAssembly.GetName().Name}'",
+            functionName);
+
+        foreach (var relativeFolderPath in relativeFolderPaths)
+        {
+            totalProcessed += await LoadAndProcessFolder(modAssembly, relativeFolderPath);
+        }
+
+        _debugLogHelper.LogService(
+            FileName,
+            $"Finished processing folders. Total processed: {totalProcessed}",
+            functionName);
+
+        return totalProcessed;
+    }
+
+    public async Task<int> LoadAndProcessFolder(string folderPath)
+    {
+        const string functionName = nameof(LoadAndProcessFolder);
+
+        if (!_settings.Items.Enabled)
+        {
+            _debugLogHelper.LogService(
+                FileName,
+                "Item processing is disabled by config.",
+                functionName);
+
+            return 0;
+        }
+
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            _debugLogHelper.LogWarning(
+                FileName,
+                "LoadAndProcessFolder called with an empty folder path.",
+                functionName);
+
+            return 0;
+        }
+
+        if (!Directory.Exists(folderPath))
+        {
+            if (_settings.Items.LogMissingFolders)
             {
-                debugLogHelper.LogError("CommonCoreItemService", $"No valid item configs found in {directoryPath}");
-                return;
+                _debugLogHelper.Log(
+                    FileName,
+                    $"Folder does not exist, skipping: {folderPath}",
+                    functionName);
             }
 
-            var totalItemsCreated = 0;
+            return 0;
+        }
 
-            foreach (var config in itemConfigs)
+        var processedCount = 0;
+        var files = Directory.GetFiles(folderPath, "*.json", SearchOption.AllDirectories);
+
+        _debugLogHelper.LogService(
+            FileName,
+            $"Found {files.Length} json file(s) in '{folderPath}'",
+            functionName);
+
+        foreach (var filePath in files)
+        {
+            try
             {
-                config.Normalize();
-
-                if (Create(config))
+                var request = await LoadRequest(filePath);
+                if (request == null)
                 {
-                    totalItemsCreated++;
-                }
-            }
+                    _debugLogHelper.LogWarning(
+                        FileName,
+                        $"Failed to deserialize item request: {filePath}",
+                        functionName);
 
-            debugLogHelper.LogService("CommonCoreItemService", $"Created {totalItemsCreated} custom items from {itemConfigs.Count} files");
-        }
-        catch (Exception ex)
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Error loading custom items from directory {directoryPath}: {ex.Message}");
-        }
-    }
+                    if (!_settings.Items.ContinueOnFileError)
+                    {
+                        _debugLogHelper.LogWarning(
+                            FileName,
+                            "Stopping item processing because ContinueOnFileError is false.",
+                            functionName);
 
-    public bool Create(ItemCreationRequest request)
-    {
-        request.Normalize();
+                        break;
+                    }
 
-        if (string.IsNullOrWhiteSpace(request.NewId))
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Create: NewId is null or empty.");
-            return false;
-        }
-
-        if (loadedItemRegistry.Contains(request.NewId))
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Create: Id {request.NewId} duplicated!");
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(request.ItemTplToClone))
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Create: Item {request.NewId} has null ItemTplToClone.");
-            return false;
-        }
-
-        try
-        {
-            var cloneId = ItemTplResolver.ResolveId(request.ItemTplToClone);
-
-            if (db?.Templates?.Items?.ContainsKey(cloneId.ToString()!) != true)
-            {
-                debugLogHelper.LogError("CommonCoreItemService", $"Create: Item {request.NewId} has invalid ItemTplToClone '{request.ItemTplToClone}'.");
-                return false;
-            }
-
-            var clonedItem = db.Templates.Items[cloneId.ToString()!];
-
-            MongoId parentId;
-
-            if (!string.IsNullOrWhiteSpace(request.ParentId))
-            {
-                parentId = NameHelper.ResolveId(request.ParentId, ItemMaps.ItemBaseClassMap);
-            }
-            else
-            {
-                parentId = new MongoId(clonedItem.Parent);
-            }
-
-            var handbookParentId = ResolveHandbookParent(request, cloneId);
-            if (handbookParentId == null)
-            {
-                debugLogHelper.LogError("CommonCoreItemService", $"Create: Failed to resolve handbook parent for {request.NewId}.");
-                return false;
-            }
-
-            var itemDetails = new NewItemFromCloneDetails
-            {
-                ItemTplToClone = cloneId,
-                ParentId = parentId,
-                NewId = request.NewId,
-                FleaPriceRoubles = request.FleaPriceRoubles,
-                HandbookPriceRoubles = request.HandbookPriceRoubles,
-                HandbookParentId = handbookParentId,
-                Locales = LocaleConverter.ToLocaleDetails(request.Locales),
-                OverrideProperties = request.OverrideProperties
-            };
-
-            customItemService.CreateItemFromClone(itemDetails);
-
-            ProcessItemFeatures(request);
-
-            loadedItemRegistry.Add(request.NewId);
-            debugLogHelper.LogService("CommonCoreItemService", $"Created item {request.NewId}");
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Create failed for {request.NewId}: {ex.Message}");
-            return false;
-        }
-    }
-
-    private MongoId? ResolveHandbookParent(ItemCreationRequest request, MongoId cloneId)
-    {
-        if (!string.IsNullOrWhiteSpace(request.HandbookParentId))
-        {
-            return NameHelper.ResolveId(request.HandbookParentId, ItemMaps.ItemHandbookCategoryMap);
-        }
-
-        return TryGetHandbookParent(cloneId.ToString()!, out var parentId)
-            ? parentId
-            : null;
-    }
-
-    private bool TryGetHandbookParent(string itemTpl, out MongoId parentId)
-    {
-        parentId = default!;
-
-        try
-        {
-            var handbook = db?.Templates?.GetType().GetProperty("Handbook")?.GetValue(db.Templates);
-            var items = handbook?.GetType().GetProperty("Items")?.GetValue(handbook) as System.Collections.IEnumerable;
-            if (items == null)
-            {
-                return false;
-            }
-
-            foreach (var entry in items)
-            {
-                var id = entry?.GetType().GetProperty("Id")?.GetValue(entry)?.ToString();
-                if (!string.Equals(id, itemTpl, StringComparison.OrdinalIgnoreCase))
-                {
                     continue;
                 }
 
-                var parent = entry?.GetType().GetProperty("ParentId")?.GetValue(entry);
-                if (parent is MongoId mongoId)
+                await Process(request);
+                processedCount++;
+
+                if (_settings.Items.LogProcessedFiles)
                 {
-                    parentId = mongoId;
-                    return true;
+                    _debugLogHelper.LogService(
+                        FileName,
+                        $"Processed item request from '{filePath}'",
+                        functionName);
                 }
-
-                return false;
             }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-    private static bool ShouldProcessTraderRouting(ItemCreationRequest request)
-    {
-        return request.AddToTraders
-            || (request.Traders != null);
-    }
-
-    private void ProcessItemFeatures(ItemCreationRequest request)
-    {
-
-        debugLogHelper.LogService("CommonCoreItemService", $"Processing features for {request.NewId}... - {request.AddToQuestAssorts}");
-        if (db == null)
-        {
-            return;
-        }
-
-        if (ShouldProcessTraderRouting(request))
-            traderItemHelper.Process(request);
-
-        if (request.AddToQuestRewards)
-            questRewardHelper.Process(request);
-
-        if (request.AddToQuestAssorts)
-            questAssortHelper.Process(request);
-
-        if (request.AddToPreset)
-            weaponPresetHelper.Process(request);
-
-        if (request.AddMasteries)
-            masteryHelper.Process(request);
-
-        if (request.AddToModSlots)
-            AddDeferredModSlotRequest(request);
-
-        if (request.AddToInventorySlots != null)
-            inventorySlotHelper.Process(request);
-
-        if (request.AddToHallOfFame)
-            hallOfFameHelper.Process(request);
-
-        if (request.AddToSpecialSlots)
-            specialSlotsHelper.Process(request);
-
-        if (request.AddToStaticLootContainers)
-            staticLootHelper.Process(request);
-
-        if (request.AddToBots)
-            botLootHelper.Process(request);
-
-        if (request.AddCaliberToAllCloneLocations)
-            AddDeferredCaliberRequest(request);
-
-        if (request.AddToGeneratorAsFuel)
-            generatorFuelHelper.Process(request);
-
-        if (request.AddToHideoutPosterSlots)
-            hideoutPosterHelper.Process(request);
-
-        if (request.AddPosterToMaps)
-            posterLootHelper.Process(request);
-
-        if (request.AddToStatuetteSlots)
-            hideoutStatuetteHelper.Process(request);
-
-        if (request.AddToStaticAmmo)
-            staticAmmoHelper.Process(request);
-
-        if (request.AddToEmptyPropSlots)
-            emptyPropSlotHelper.Process(request);
-
-        if (request.AddToSecureFilters)
-            AddDeferredSecureFilterRequest(request);
-
-        if (request.IsRandomLootContainer && request.RandomLootContainerRewards != null)
-            randomLootContainerHelper.Process(request);
-
-        if (request.CopySlot)
-            slotCloneHelper.Process(request);
-
-        if (request.AddSlot)
-            slotAddHelper.Process(request);
-
-        if (request.AmmoCloneCompatibility ||
-            request.WeaponCloneChamberCompatibility ||
-            request.MagCloneCartridgeCompatibility)
-        {
-            compatibilityCloneHelper.Process(request);
-        }
-
-        if (request.AddBuffs)
-            buffHelper.Process(request);
-
-        if (request.AddCrafts)
-            craftHelper.Process(request);
-
-        if (request.AdditionalAssortData != null)
-            assortHelper.Process(request);
-
-        if (request.ScriptedConflictingInfos != null && request.ScriptedConflictingInfos.Length > 0)
-            scriptedConflictHelper.Process(request);
-
-        if (request.Locales != null)
-            localeHelper.Process(request);
-
-        if (request.AddToPrimaryWeaponSlot || request.AddToHolsterWeaponSlot)
-            equipmentSlotHelper.Process(request);
-    }
-
-    private void AddDeferredCaliberRequest(ItemCreationRequest request)
-    {
-        if (_deferredCaliberRequests.Any(x => x.NewId.Equals(request.NewId, StringComparison.OrdinalIgnoreCase)))
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Deferred caliber request for {request.NewId} already exists, skipping.");
-            return;
-        }
-
-        _deferredCaliberRequests.Add(request);
-    }
-
-    public void ProcessDeferredCalibers()
-    {
-        if (_deferredCaliberRequests.Count == 0)
-        {
-            debugLogHelper.LogService("CommonCoreItemService", $"No deferred caliber requests to process");
-            return;
-        }
-
-        debugLogHelper.LogService("CommonCoreItemService", $"Processing {_deferredCaliberRequests.Count} deferred caliber requests...");
-
-        foreach (var request in _deferredCaliberRequests)
-        {
-            try
+            catch (Exception ex)
             {
-                if (db == null)
+                _debugLogHelper.LogError(
+                    FileName,
+                    $"Failed processing item file '{filePath}': {ex}",
+                    functionName);
+
+                if (!_settings.Items.ContinueOnFileError)
                 {
-                    return;
+                    _debugLogHelper.LogWarning(
+                        FileName,
+                        "Stopping item processing because ContinueOnFileError is false.",
+                        functionName);
+
+                    break;
                 }
-
-                caliberHelper.Process(request);
-                debugLogHelper.LogService("CommonCoreItemService", $"Processed caliber config for {request.NewId}");
-            }
-            catch (Exception)
-            {
-                debugLogHelper.LogError("CommonCoreItemService", $"Failed processing caliber config for {request.NewId}");
             }
         }
 
-        _deferredCaliberRequests.Clear();
-        debugLogHelper.LogService("CommonCoreItemService", $"Finished processing deferred caliber requests");
+        _debugLogHelper.LogService(
+            FileName,
+            $"Processed {processedCount} item file(s) from '{folderPath}'",
+            functionName);
+
+        return processedCount;
     }
 
-    private void AddDeferredModSlotRequest(ItemCreationRequest request)
+    public Task Process(CommonCoreItemRequest request)
     {
-        if (_deferredModSlotRequests.Any(x => x.NewId.Equals(request.NewId, StringComparison.OrdinalIgnoreCase)))
-        {
-            debugLogHelper.LogError("CommonCoreItemService", $"Deferred mod slot request for {request.NewId} already exists, skipping.");
-            return;
-        }
+        const string functionName = nameof(Process);
 
-        _deferredModSlotRequests.Add(request);
+        ArgumentNullException.ThrowIfNull(request);
+
+        _debugLogHelper.Log(
+            FileName,
+            $"Processing request for item '{TryGetRequestId(request)}'",
+            functionName);
+
+        return _itemFeaturePipeline.ProcessItemFeatures(request);
     }
 
-    public void ProcessDeferredModSlots()
+    private async Task<CommonCoreItemRequest?> LoadRequest(string filePath)
     {
-        if (_deferredModSlotRequests.Count == 0)
+        const string functionName = nameof(LoadRequest);
+
+        try
         {
-            debugLogHelper.LogService("CommonCoreItemService", $"No deferred mod slot requests to process");
-            return;
+            var json = await File.ReadAllTextAsync(filePath);
+            var request = JsonSerializer.Deserialize<CommonCoreItemRequest>(json, JsonOptions);
+
+            if (request != null)
+            {
+                _debugLogHelper.Log(
+                    FileName,
+                    $"Successfully deserialized request from '{filePath}'",
+                    functionName);
+            }
+
+            return request;
         }
-
-        debugLogHelper.LogService("CommonCoreItemService", $"Processing {_deferredModSlotRequests.Count} deferred mod slot requests...");
-
-        foreach (var request in _deferredModSlotRequests)
+        catch (Exception ex)
         {
-            try
-            {
-                if (db == null)
-                {
-                    return;
-                }
+            _debugLogHelper.LogError(
+                FileName,
+                $"Failed to deserialize request from '{filePath}': {ex}",
+                functionName);
 
-                modSlotHelper.Process(request);
-                debugLogHelper.LogService("CommonCoreItemService", $"Processed mod slots for {request.NewId}");
-            }
-            catch (Exception)
-            {
-                debugLogHelper.LogError("CommonCoreItemService", $"Failed processing mod slots for {request.NewId}");
-            }
+            return null;
         }
-
-        _deferredModSlotRequests.Clear();
-        debugLogHelper.LogService("CommonCoreItemService", $"Finished processing deferred mod slot requests");
     }
 
-    private void AddDeferredSecureFilterRequest(ItemCreationRequest request)
+    private static string TryGetRequestId(CommonCoreItemRequest request)
     {
-        if (_deferredSecureFilterRequests.Any(x => x.NewId.Equals(request.NewId, StringComparison.OrdinalIgnoreCase)))
+        var type = request.GetType();
+
+        var newIdProperty = type.GetProperty("NewId");
+        if (newIdProperty?.GetValue(request) is string newId && !string.IsNullOrWhiteSpace(newId))
         {
-            debugLogHelper.LogError("CommonCoreItemService", $"Deferred secure filter request for {request.NewId} already exists, skipping.");
-            return;
+            return newId;
         }
 
-        _deferredSecureFilterRequests.Add(request);
-    }
-
-    public void ProcessDeferredSecureFilters()
-    {
-        if (_deferredSecureFilterRequests.Count == 0)
+        var idProperty = type.GetProperty("Id");
+        if (idProperty?.GetValue(request) is string id && !string.IsNullOrWhiteSpace(id))
         {
-            debugLogHelper.LogService("CommonCoreItemService", $"No deferred secure filter requests to process");
-            return;
+            return id;
         }
 
-        debugLogHelper.LogService("CommonCoreItemService", $"Processing {_deferredSecureFilterRequests.Count} deferred secure filter requests...");
-
-        foreach (var request in _deferredSecureFilterRequests)
-        {
-            try
-            {
-                if (db == null)
-                {
-                    return;
-                }
-
-                secureFiltersHelper.Process(request);
-                debugLogHelper.LogService("CommonCoreItemService", $"Processed secure filters for {request.NewId}");
-            }
-            catch (Exception)
-            {
-                debugLogHelper.LogError("CommonCoreItemService", $"Failed processing secure filters for {request.NewId}");
-            }
-        }
-
-        _deferredSecureFilterRequests.Clear();
-        debugLogHelper.LogService("CommonCoreItemService", $"Finished processing deferred secure filter requests");
+        return "UnknownItem";
     }
 }

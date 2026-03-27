@@ -5,6 +5,7 @@ REM %1 = ProjectDir
 REM %2 = TargetDir
 REM %3 = AssemblyName
 
+set "PROJECTDIR=%~1"
 set "TARGETDIR=%~2"
 set "ASSEMBLY=%~3"
 
@@ -21,7 +22,15 @@ if not exist "%MODDIR%" (
     mkdir "%MODDIR%"
 )
 
-copy /Y "%TARGETDIR%%ASSEMBLY%.dll" "%MODDIR%\"
+echo Copying DLL...
+copy /Y "%TARGETDIR%%ASSEMBLY%.dll" "%MODDIR%\" >nul
+
+echo Copying config.json...
+if exist "%PROJECTDIR%config.json" (
+    copy /Y "%PROJECTDIR%config.json" "%MODDIR%\" >nul
+) else (
+    echo config.json not found, skipping...
+)
 
 echo Done.
 exit /b 0
