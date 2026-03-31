@@ -1,43 +1,36 @@
 ﻿using CommonLibExtended.Constants;
+using CommonLibExtended.Core;
 using CommonLibExtended.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Enums;
-using SPTarkov.Server.Core.Models.Spt.Server;
-using SPTarkov.Server.Core.Models.Spt.Templates;
 using SPTarkov.Server.Core.Services;
 using WTTServerCommonLib.Models;
 
 namespace CommonLibExtended.Helpers;
 
-[Injectable(InjectionType.Singleton)]
-public sealed class QuestAssortHelper
+[Injectable]
+public sealed class QuestAssortHelper(
+    DebugLogHelper debugLogHelper,
+    DatabaseService databaseService,
+    CLESettings settings,
+    PresetBuildHelper presetBuildHelper,
+    BuiltPresetCache builtPresetCache)
 {
-    private const string StartedStatus = "Started";
-    private const string SuccessStatus = "Success";
-    private const string FailStatus = "Fail";
+    private const string StartedBucket = "started";
+    private const string SuccessBucket = "success";
+    private const string FailBucket = "fail";
 
-    private readonly DebugLogHelper _debug;
-    private readonly DatabaseService? _databaseService;
-
-
-    public QuestAssortHelper(
-        DebugLogHelper debugLogHelper,
-        DatabaseService databaseService)
-    {
-        _debug = debugLogHelper;
-        _databaseService = databaseService;
-    }
+    private const string RubTpl = "5449016a4bdc2d6f028b456f";
+    private const string UsdTpl = "5696686a4bdc2da3298b456a";
+    private const string EurTpl = "569668774bdc2da2298b4568";
 
     public void Process(ItemModificationRequest request)
     {
-        if (!request.Extras.AddToQuestAssorts || request.Extras.QuestAssorts.Length == 0)
+        if (request.Extras.QuestAssorts == null)
         {
             return;
         }
-
-        var tables = _databaseService.GetTables();
 
         foreach (var config in request.Extras.QuestAssorts)
         {
@@ -46,218 +39,363 @@ public sealed class QuestAssortHelper
                 continue;
             }
 
-            ProcessSingle(request, config, tables.Traders, tables.Templates.Quests);
+            if (string.IsNullOrWhiteSpace(config.QuestId))
+            {
+                debugLogHelper.LogError("QuestAssortHelper", $"Missing questId for item {request.ItemId}");
+                continue;
+            }
+
+            var traderId = ResolveTraderId(config.TraderId);
+            if (string.IsNullOrWhiteSpace(traderId))
+            {
+                debugLogHelper.LogError(
+                    "QuestAssortHelper",
+                    $"Could not resolve traderId for quest {config.QuestId} on item {request.ItemId}");
+                continue;
+            }
+
+            var assortId = ResolveOrBuildAssortId(request, traderId, config);
+            if (string.IsNullOrWhiteSpace(assortId))
+            {
+                debugLogHelper.LogError(
+                    "QuestAssortHelper",
+                    $"Could not resolve or build assortId for quest {config.QuestId} on item {request.ItemId}");
+                continue;
+            }
+
+            AddQuestAssortMapping(
+                traderId,
+                config.QuestId,
+                assortId,
+                NormalizeQuestStatusBucket(config.Status));
         }
     }
 
-    private void ProcessSingle(
-        ItemModificationRequest request,
-        QuestAssortConfig config,
-        Dictionary<MongoId, Trader> traders,
-        Dictionary<MongoId, Quest> quests)
+    public void AddQuestAssortMapping(
+        string traderId,
+        string questId,
+        string assortId,
+        string statusBucket = SuccessBucket)
     {
-        var traderId = ResolveTraderId(config.TraderId, traders);
-
         if (string.IsNullOrWhiteSpace(traderId))
         {
-            _debug.LogError("QuestAssortHelper", $"Invalid trader '{config.TraderId}'");
+            debugLogHelper.LogError("QuestAssortHelper", "traderId is null or empty");
             return;
         }
 
-        MongoId traderMongoId = traderId;
+        if (string.IsNullOrWhiteSpace(questId))
+        {
+            debugLogHelper.LogError("QuestAssortHelper", "questId is null or empty");
+            return;
+        }
 
-        var assortId = ResolveAssortId(request, traderId, config);
         if (string.IsNullOrWhiteSpace(assortId))
         {
-            _debug.LogError("QuestAssortHelper", $"Could not resolve assortId for trader '{traderId}'");
+            debugLogHelper.LogError("QuestAssortHelper", $"assortId is null or empty for quest {questId}");
             return;
         }
 
-        EnsureBuckets(traderMongoId, traders);
-        AddToBucket(traderMongoId, assortId, config.QuestId, config.Status, traders);
-        AddRewardDisplay(request, config.QuestId, traderId, assortId, quests);
+        if (!databaseService.GetTraders().TryGetValue(traderId, out var trader) || trader?.Assort == null)
+        {
+            debugLogHelper.LogError("QuestAssortHelper", $"Trader {traderId} not found or assort is null");
+            return;
+        }
 
-        _debug.LogService("QuestAssortHelper", $"Added {assortId} -> {config.QuestId} ({config.Status})");
+        var questAssort = trader.QuestAssort;
+        if (questAssort == null)
+        {
+            debugLogHelper.LogError(
+                "QuestAssortHelper",
+                $"Trader {traderId} has null QuestAssort and it cannot be assigned because the property is init-only");
+            return;
+        }
+
+        EnsureQuestAssortBucket(questAssort, StartedBucket);
+        EnsureQuestAssortBucket(questAssort, SuccessBucket);
+        EnsureQuestAssortBucket(questAssort, FailBucket);
+
+        var bucket = questAssort[statusBucket];
+        bucket[assortId] = questId;
+
+        debugLogHelper.LogService(
+            "QuestAssortHelper",
+            $"Added quest assort mapping trader={traderId} assort={assortId} -> quest={questId} ({statusBucket})");
     }
 
-    // -------------------------
-    // RESOLUTION
-    // -------------------------
-
-    private static string ResolveTraderId(string traderIdOrAlias, Dictionary<MongoId, Trader> traders)
-    {
-        if (string.IsNullOrWhiteSpace(traderIdOrAlias))
-        {
-            return string.Empty;
-        }
-
-        MongoId traderMongoId = traderIdOrAlias;
-        if (traders.ContainsKey(traderMongoId))
-        {
-            return traderIdOrAlias;
-        }
-
-        if (Maps.TraderMap.TryGetValue(traderIdOrAlias, out var mapped))
-        {
-            return mapped;
-        }
-
-        return string.Empty;
-    }
-
-    private static string ResolveAssortId(ItemModificationRequest request, string traderId, QuestAssortConfig config)
+    private string? ResolveOrBuildAssortId(
+        ItemModificationRequest request,
+        string traderId,
+        QuestAssortConfig config)
     {
         if (!string.IsNullOrWhiteSpace(config.AssortId))
         {
+            if (EnsurePresetOfferExistsIfPossible(request, traderId, config.AssortId, config.PresetId))
+            {
+                return config.AssortId;
+            }
+
             return config.AssortId;
         }
 
-        if (request.Config.Traders != null &&
-            request.Config.Traders.TryGetValue(traderId, out var entries) &&
-            entries.Count > 0)
+        if (string.IsNullOrWhiteSpace(config.PresetId))
         {
-            return entries.Keys.First();
+            return null;
         }
 
-        return string.Empty;
-    }
-
-    // -------------------------
-    // BUCKETS
-    // -------------------------
-
-    private void EnsureBuckets(MongoId traderId, Dictionary<MongoId, Trader> traders)
-    {
-        var trader = traders.GetValueOrDefault(traderId);
-
-        if (trader?.QuestAssort == null)
+        var cached = builtPresetCache.GetByPresetId(config.PresetId);
+        if (cached != null && !string.IsNullOrWhiteSpace(cached.RootBuiltItemId))
         {
-            _debug.LogError("QuestAssortHelper", $"Trader '{traderId}' missing QuestAssort");
-            return;
+            return cached.RootBuiltItemId;
         }
 
-        trader.QuestAssort.TryAdd("started", new Dictionary<MongoId, MongoId>());
-        trader.QuestAssort.TryAdd("success", new Dictionary<MongoId, MongoId>());
-        trader.QuestAssort.TryAdd("fail", new Dictionary<MongoId, MongoId>());
+        var built = TryBuildPresetOfferFromRequest(request, traderId, config.PresetId);
+        if (built != null && !string.IsNullOrWhiteSpace(built.RootBuiltItemId))
+        {
+            return built.RootBuiltItemId;
+        }
+
+        return null;
     }
 
-    private static void AddToBucket(
-        MongoId traderId,
-        string assortId,
-        string questId,
-        string? status,
-        Dictionary<MongoId, Trader> traders)
-    {
-        var trader = traders[traderId];
-
-        var bucketKey = NormalizeStatus(status).ToLowerInvariant();
-
-        var bucket = trader.QuestAssort[bucketKey];
-
-        MongoId assortMongoId = assortId;
-        MongoId questMongoId = questId;
-
-        bucket[assortMongoId] = questMongoId;
-    }
-
-    // -------------------------
-    // REWARD DISPLAY
-    // -------------------------
-
-    private void AddRewardDisplay(
+    private bool EnsurePresetOfferExistsIfPossible(
         ItemModificationRequest request,
-        string questId,
         string traderId,
         string assortId,
-        Dictionary<MongoId, Quest> quests)
+        string? presetId)
     {
-        MongoId questMongoId = questId;
-
-        if (!quests.TryGetValue(questMongoId, out var quest))
+        if (databaseService.GetTraders().TryGetValue(traderId, out var trader)
+            && trader?.Assort?.Items != null
+            && trader.Assort.Items.Any(x => string.Equals(x.Id, assortId, StringComparison.OrdinalIgnoreCase)))
         {
-            _debug.LogError("QuestAssortHelper", $"Quest '{questId}' not found");
-            return;
+            return true;
         }
 
-        quest.Rewards ??= [];
-        quest.Rewards["Success"] ??= [];
-
-        var loyaltyLevel = ResolveLoyaltyLevel(request, traderId, assortId);
-
-        var exists = quest.Rewards["Success"].Any(x =>
-            x.Type == RewardType.AssortmentUnlock &&
-            x.TraderId == traderId &&
-            x.Target == assortId);
-
-        if (exists)
+        if (!string.IsNullOrWhiteSpace(presetId))
         {
-            return;
+            var cached = builtPresetCache.GetByPresetId(presetId);
+            if (cached != null)
+            {
+                return true;
+            }
+
+            var built = TryBuildPresetOfferFromRequest(request, traderId, presetId, assortId);
+            return built != null;
         }
 
-        quest.Rewards["Success"].Add(new()
-        {
-            Type = RewardType.AssortmentUnlock,
-            TraderId = traderId,
-            Target = assortId,
-            Index = quest.Rewards["Success"].Count,
-            LoyaltyLevel = loyaltyLevel,
-            Items = BuildRewardItems(request)
-        });
-
-        _debug.LogService(
-            "QuestAssortHelper",
-            $"RewardDisplay added for {questId} (assort {assortId}, trader {traderId}, loyalty {loyaltyLevel})");
+        return false;
     }
 
-    // -------------------------
-    // UTILS
-    // -------------------------
+    private BuiltPresetResult? TryBuildPresetOfferFromRequest(
+        ItemModificationRequest request,
+        string traderId,
+        string presetId,
+        string? forcedAssortId = null)
+    {
+        if (request.Config.WeaponPresets == null || request.Config.WeaponPresets.Count == 0)
+        {
+            debugLogHelper.LogError(
+                "QuestAssortHelper",
+                $"Cannot build preset {presetId}: request has no weapon presets");
+            return null;
+        }
 
-    private static string NormalizeStatus(string? status)
+        var preset = request.Config.WeaponPresets.FirstOrDefault(x =>
+            string.Equals(x.Id, presetId, StringComparison.OrdinalIgnoreCase));
+
+        if (preset == null)
+        {
+            debugLogHelper.LogError(
+                "QuestAssortHelper",
+                $"Cannot build preset {presetId}: preset not found in request config");
+            return null;
+        }
+
+        var presetTraderEntry = FindPresetTraderEntry(request, traderId, presetId, forcedAssortId);
+        if (presetTraderEntry == null)
+        {
+            debugLogHelper.LogError(
+                "QuestAssortHelper",
+                $"Cannot build preset {presetId}: no presetTraders entry found for trader {traderId}");
+            return null;
+        }
+
+        var assortId = forcedAssortId ?? presetTraderEntry.Value.AssortId;
+        var traderConfig = presetTraderEntry.Value.Config;
+
+        if (!databaseService.GetTraders().TryGetValue(traderId, out var trader) || trader?.Assort == null)
+        {
+            debugLogHelper.LogError(
+                "QuestAssortHelper",
+                $"Cannot build preset {presetId}: trader {traderId} not found or assort is null");
+            return null;
+        }
+
+        var builtPreset = presetBuildHelper.BuildForTrader(preset, assortId, "QuestAssortHelper");
+        if (builtPreset == null)
+        {
+            return null;
+        }
+
+        trader.Assort.Items ??= [];
+        trader.Assort.BarterScheme ??= [];
+        trader.Assort.LoyalLevelItems ??= [];
+
+        var existingIds = new HashSet<string>(
+            trader.Assort.Items.Select(x => x.Id.ToString()),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in builtPreset.Items)
+        {
+            if (!existingIds.Contains(item.Id.ToString()))
+            {
+                trader.Assort.Items.Add(item);
+            }
+        }
+
+        trader.Assort.BarterScheme[assortId] = BuildBarterScheme(traderConfig.Barters);
+        trader.Assort.LoyalLevelItems[assortId] = traderConfig.ConfigBarterSettings?.LoyalLevel ?? 1;
+
+        builtPresetCache.Store(presetId, assortId, builtPreset);
+
+        debugLogHelper.LogService(
+            "QuestAssortHelper",
+            $"Built missing preset offer for preset={presetId}, trader={traderId}, assort={assortId}");
+
+        return builtPreset;
+    }
+
+    private (string AssortId, PresetTraderConfig Config)? FindPresetTraderEntry(
+        ItemModificationRequest request,
+        string traderId,
+        string presetId,
+        string? assortId = null)
+    {
+        if (request.Extras.PresetTraders == null || request.Extras.PresetTraders.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var (traderKey, assortEntries) in request.Extras.PresetTraders)
+        {
+            var resolvedTraderId = ResolveTraderId(traderKey);
+            if (!string.Equals(resolvedTraderId, traderId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (assortEntries == null || assortEntries.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var (entryAssortId, entryConfig) in assortEntries)
+            {
+                if (entryConfig == null)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(assortId)
+                    && !string.Equals(entryAssortId, assortId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (string.Equals(entryConfig.PresetId, presetId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (entryAssortId, entryConfig);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private List<List<BarterScheme>> BuildBarterScheme(List<ConfigBarterScheme>? config)
+    {
+        if (config == null || config.Count == 0)
+        {
+            return
+            [
+                [
+                    new BarterScheme
+                    {
+                        Template = RubTpl,
+                        Count = 1
+                    }
+                ]
+            ];
+        }
+
+        var row = new List<BarterScheme>();
+
+        foreach (var entry in config)
+        {
+            row.Add(new BarterScheme
+            {
+                Template = NormalizeCurrencyOrTpl(entry.Template),
+                Count = entry.Count
+            });
+        }
+
+        return [row];
+    }
+
+    private static string NormalizeCurrencyOrTpl(string value)
+    {
+        if (value.Equals("RUB", StringComparison.OrdinalIgnoreCase)) return RubTpl;
+        if (value.Equals("USD", StringComparison.OrdinalIgnoreCase)) return UsdTpl;
+        if (value.Equals("EUR", StringComparison.OrdinalIgnoreCase)) return EurTpl;
+        return value;
+    }
+
+    private string? ResolveTraderId(string? traderKey)
+    {
+        if (settings.ForceAllItemsToDefaultTrader)
+        {
+            return settings.DefaultTraderId;
+        }
+
+        if (string.IsNullOrWhiteSpace(traderKey))
+        {
+            return settings.DefaultTraderId;
+        }
+
+        if (Maps.TraderMap.TryGetValue(traderKey.ToLowerInvariant(), out var traderId))
+        {
+            return traderId;
+        }
+
+        return traderKey;
+    }
+
+    private static void EnsureQuestAssortBucket(
+        Dictionary<string, Dictionary<MongoId, MongoId>?> questAssort,
+        string bucketName)
+    {
+        if (!questAssort.ContainsKey(bucketName) || questAssort[bucketName] == null)
+        {
+            questAssort[bucketName] = new Dictionary<MongoId, MongoId>();
+        }
+    }
+
+    private static string NormalizeQuestStatusBucket(string? status)
     {
         if (string.IsNullOrWhiteSpace(status))
         {
-            return SuccessStatus;
+            return SuccessBucket;
         }
 
-        return status.ToLowerInvariant() switch
+        if (status.Equals("started", StringComparison.OrdinalIgnoreCase))
         {
-            "started" => StartedStatus,
-            "fail" => FailStatus,
-            _ => SuccessStatus
-        };
-    }
-
-    private static int ResolveLoyaltyLevel(ItemModificationRequest request, string traderId, string assortId)
-    {
-        if (request.Config.Traders != null &&
-            request.Config.Traders.TryGetValue(traderId, out var traderEntries) &&
-            traderEntries.TryGetValue(assortId, out var assortConfig) &&
-            assortConfig?.ConfigBarterSettings != null)
-        {
-            return assortConfig.ConfigBarterSettings.LoyalLevel;
+            return StartedBucket;
         }
 
-        return 0;
-    }
-
-    private static List<Item> BuildRewardItems(ItemModificationRequest request)
-    {
-        var itemId = !string.IsNullOrWhiteSpace(request.ItemId)
-            ? request.ItemId
-            : Guid.NewGuid().ToString("N")[..24];
-
-        var itemTpl = !string.IsNullOrWhiteSpace(request.Config?.ItemTplToClone)
-            ? request.Config.ItemTplToClone
-            : request.ItemId;
-
-        return
-        [
-            new Item
+        if (status.Equals("fail", StringComparison.OrdinalIgnoreCase))
         {
-            Id = itemId,
-            Template = itemTpl
+            return FailBucket;
         }
-        ];
+
+        return SuccessBucket;
     }
 }
