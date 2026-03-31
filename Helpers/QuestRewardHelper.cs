@@ -38,38 +38,39 @@ public sealed class QuestRewardHelper(
                 continue;
             }
 
-            var rewardType = config.RewardType?.Trim();
+            var rewardType = config.RewardType?.Trim().ToLowerInvariant();
+            var rewardBucket = NormalizeRewardBucket(config.Status);
 
             switch (rewardType)
             {
-                case "Item":
+                case "item":
                     AddItemReward(
                         config.QuestId,
                         request.ItemId,
                         config.Count,
                         config.FindInRaid,
                         false,
-                        NormalizeRewardBucket(config.Status));
+                        rewardBucket);
                     break;
 
-                case "Ammo":
+                case "ammo":
                     AddAmmoReward(
                         config.QuestId,
                         request.ItemId,
                         config.Count,
                         config.FindInRaid,
-                        NormalizeRewardBucket(config.Status));
+                        rewardBucket);
                     break;
 
-                case "Weapon":
+                case "weapon":
                     AddWeaponReward(
                         config.QuestId,
                         request.ItemId,
                         config.FindInRaid,
-                        NormalizeRewardBucket(config.Status));
+                        rewardBucket);
                     break;
 
-                case "WeaponPreset":
+                case "weaponpreset":
                     if (string.IsNullOrWhiteSpace(config.PresetId))
                     {
                         debugLogHelper.LogError("QuestReward", $"Missing presetId for quest {config.QuestId}");
@@ -81,15 +82,15 @@ public sealed class QuestRewardHelper(
                         config.PresetId,
                         config.FindInRaid,
                         config.IsHidden,
-                        NormalizeRewardBucket(config.Status));
+                        rewardBucket);
                     break;
 
-                case "Currency":
+                case "currency":
                     AddCurrencyReward(
                         config.QuestId,
                         config.CurrencyTpl ?? RubTpl,
                         config.Count,
-                        NormalizeRewardBucket(config.Status));
+                        rewardBucket);
                     break;
 
                 default:
@@ -147,7 +148,7 @@ public sealed class QuestRewardHelper(
 
         debugLogHelper.LogService(
             "QuestReward",
-            $"Added item reward {itemTpl} x{count} to {questId} ({rewardBucket})");
+            $"Added item reward {itemTpl} x{count} to quest {questId} ({rewardBucket})");
     }
 
     public void AddAmmoReward(
@@ -193,35 +194,52 @@ public sealed class QuestRewardHelper(
 
         EnsureRewardBuckets(quest);
 
+        // presetId is ONLY a reference to a cached built preset template
         var builtPreset = builtPresetCache.GetByPresetId(presetId);
         if (builtPreset == null)
         {
             debugLogHelper.LogError(
                 "QuestReward",
-                $"Built preset {presetId} not found in cache for quest {questId}");
+                $"Built preset template for source preset {presetId} not found in cache for quest {questId}");
+            return;
+        }
 
+        if (builtPreset.Items == null || builtPreset.Items.Count == 0)
+        {
+            debugLogHelper.LogError(
+                "QuestReward",
+                $"Built preset template for source preset {presetId} has no items");
             return;
         }
 
         var idMap = new Dictionary<string, MongoId>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var item in builtPreset.Items)
+        foreach (var sourceItem in builtPreset.Items)
         {
-            idMap[item.Id.ToString()] = new MongoId();
+            idMap[sourceItem.Id.ToString()] = new MongoId();
         }
 
         var rewardItems = new List<Item>();
 
         foreach (var sourceItem in builtPreset.Items)
         {
-            var oldId = sourceItem.Id.ToString();
-            var newId = idMap[oldId];
+            var sourceId = sourceItem.Id.ToString();
+            var newId = idMap[sourceId];
 
             string? newParentId = null;
-            if (!string.IsNullOrWhiteSpace(sourceItem.ParentId)
-                && !string.Equals(sourceItem.ParentId, "hideout", StringComparison.OrdinalIgnoreCase)
-                && idMap.TryGetValue(sourceItem.ParentId, out var mappedParent))
+            var sourceParentId = sourceItem.ParentId?.ToString();
+
+            if (!string.IsNullOrWhiteSpace(sourceParentId)
+                && !string.Equals(sourceParentId, "hideout", StringComparison.OrdinalIgnoreCase))
             {
+                if (!idMap.TryGetValue(sourceParentId, out var mappedParent))
+                {
+                    debugLogHelper.LogError(
+                        "QuestReward",
+                        $"Failed to map parent {sourceParentId} for preset reward clone item {sourceId} from source preset {presetId}");
+                    return;
+                }
+
                 newParentId = mappedParent.ToString();
             }
 
@@ -231,10 +249,12 @@ public sealed class QuestRewardHelper(
                 Template = sourceItem.Template,
                 ParentId = newParentId,
                 SlotId = sourceItem.SlotId,
-                Upd = CloneUpd(sourceItem.Upd)
+                Location = sourceItem.Location,
+                Upd = CloneUpd(sourceItem.Upd),
             };
 
-            if (oldId == builtPreset.RootBuiltItemId)
+            // Reward root should not remain attached to hideout
+            if (string.Equals(sourceId, builtPreset.RootBuiltItemId, StringComparison.OrdinalIgnoreCase))
             {
                 newItem.ParentId = null;
                 newItem.SlotId = null;
@@ -250,17 +270,23 @@ public sealed class QuestRewardHelper(
 
             debugLogHelper.LogService(
                 "QuestReward",
-                $"Reward clone: {oldId} -> {newItem.Id}, parent={newItem.ParentId}, tpl={newItem.Template}");
+                $"Preset reward clone from source preset {presetId}: {sourceId} -> {newItem.Id}, parent={newItem.ParentId}, tpl={newItem.Template}");
         }
 
-        var rootItem = rewardItems.FirstOrDefault(x => x.ParentId == null) ?? rewardItems.First();
+        if (!idMap.TryGetValue(builtPreset.RootBuiltItemId, out var rewardRootId))
+        {
+            debugLogHelper.LogError(
+                "QuestReward",
+                $"Could not resolve reward root for source preset {presetId}");
+            return;
+        }
 
         var reward = new Reward
         {
             Id = new MongoId(),
             Type = RewardType.Item,
             Index = quest.Rewards![rewardBucket].Count,
-            Target = rootItem.Id.ToString(),
+            Target = rewardRootId.ToString(),
             Value = 1,
             FindInRaid = findInRaid,
             IsHidden = isHidden,
@@ -274,7 +300,7 @@ public sealed class QuestRewardHelper(
 
         debugLogHelper.LogService(
             "QuestReward",
-            $"Added BUILT preset reward {presetId} -> quest {questId} with {rewardItems.Count} items ({rewardBucket})");
+            $"Added preset reward using source preset reference {presetId} to quest {questId} with {rewardItems.Count} items ({rewardBucket})");
     }
 
     private bool TryGetQuest(string questId, out Quest quest)
@@ -390,5 +416,15 @@ public sealed class QuestRewardHelper(
             Sight = original.Sight,
             SpawnedInSession = original.SpawnedInSession
         };
+    }
+
+    private static Dictionary<string, object>? CloneProperties(Dictionary<string, object>? original)
+    {
+        if (original == null)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object>(original, StringComparer.OrdinalIgnoreCase);
     }
 }
