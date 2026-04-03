@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CommonCore.Generator;
+namespace CommonLibExtended.Generator;
 
 public static class MongoIdGenerator
 {
