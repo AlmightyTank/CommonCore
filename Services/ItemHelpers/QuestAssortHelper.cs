@@ -1,8 +1,8 @@
 ﻿using CommonLibExtended.Constants;
 using CommonLibExtended.Core;
+using CommonLibExtended.Helpers;
 using CommonLibExtended.Models;
 using CommonLibExtended.Services;
-using CommonLibExtended.Services.ItemHelpers;
 using CommonLibExtended.Services.ItemHelpers.Helpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
@@ -11,7 +11,7 @@ using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Services;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Helpers;
+namespace CommonLibExtended.Services.ItemHelpers;
 
 [Injectable]
 public sealed class QuestAssortHelper(

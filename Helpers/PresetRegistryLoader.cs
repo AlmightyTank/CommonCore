@@ -1,11 +1,11 @@
-using CommonLibExtended.Helpers;
 using CommonLibExtended.Models;
+using CommonLibExtended.Services;
 using SPTarkov.DI.Annotations;
 using System.Reflection;
 using System.Text.Json;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Helpers;
 
 [Injectable]
 public sealed class PresetRegistryLoader(

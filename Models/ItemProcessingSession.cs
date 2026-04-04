@@ -1,7 +1,6 @@
-using CommonLibExtended.Models;
 using System.Reflection;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Models;
 
 internal sealed class ItemProcessingSession
 {
