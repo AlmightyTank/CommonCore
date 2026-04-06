@@ -56,6 +56,14 @@ public sealed class ItemModificationExtras
     [JsonPropertyName("magCloneCartridgeId")]
     public string? MagCloneCartridgeId { get; set; }
 
+    [JsonPropertyName("addSpawnsInSamePlacesAsOrigin")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AddSpawnsInSamePlacesAsOrigin { get; set; }
+
+    [JsonPropertyName("spawnWeightComparedToOrigin")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? SpawnWeightComparedToOrigin { get; set; }
+
     public void Validate(string itemId)
     {
         if (CopySlot == true && (CopySlots == null || CopySlots.Count == 0))

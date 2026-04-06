@@ -4,12 +4,16 @@ namespace CommonLibExtended.Models;
 public enum ItemModificationPhases
 {
     None = 0,
+
     CloneCompatibilities = 1 << 0,
     SlotCopies = 1 << 1,
     PresetTraders = 1 << 2,
-    EquipmentSlots = 1 << 5,
-    QuestAssorts = 1 << 6,
-    QuestRewards = 1 << 7,
+
+    EquipmentSlots = 1 << 3,
+    QuestAssorts = 1 << 4,
+    QuestRewards = 1 << 5,
+
+    SpawnClones = 1 << 6,
 
     All = CloneCompatibilities
         | SlotCopies
@@ -17,4 +21,5 @@ public enum ItemModificationPhases
         | EquipmentSlots
         | QuestAssorts
         | QuestRewards
+        | SpawnClones
 }

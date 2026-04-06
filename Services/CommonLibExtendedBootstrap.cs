@@ -132,6 +132,21 @@ public sealed class CommonLibExtendedBootstrap(
         await Task.CompletedTask;
     }
 
+    public async Task ProcessSpawnClones(Assembly assembly, params string[] relativePaths)
+    {
+        var session = GetOrCreateSession(assembly, relativePaths);
+        EnsureCompatibilityInitialized(session);
+
+        if (session.Requests.Count == 0)
+        {
+            await Task.CompletedTask;
+            return;
+        }
+
+        ProcessPhase(session, ItemModificationPhases.SpawnClones);
+        await Task.CompletedTask;
+    }
+
     public async Task ProcessTheRest(Assembly assembly, params string[] relativePaths)
     {
         var session = GetOrCreateSession(assembly, relativePaths);
@@ -281,36 +296,25 @@ public sealed class CommonLibExtendedBootstrap(
         _sessions.Remove(session.CacheKey);
     }
 
+    private static readonly ItemModificationPhases[] OrderedPhases =
+    [
+    ItemModificationPhases.CloneCompatibilities,
+    ItemModificationPhases.SlotCopies,
+    ItemModificationPhases.PresetTraders,
+    ItemModificationPhases.EquipmentSlots,
+    ItemModificationPhases.QuestAssorts,
+    ItemModificationPhases.QuestRewards,
+    ItemModificationPhases.SpawnClones
+    ];
+
     private void ProcessPhases(ItemProcessingSession session, ItemModificationPhases phases)
     {
-        if (phases.HasFlag(ItemModificationPhases.CloneCompatibilities))
+        foreach (var phase in OrderedPhases)
         {
-            ProcessPhase(session, ItemModificationPhases.CloneCompatibilities);
-        }
-
-        if (phases.HasFlag(ItemModificationPhases.SlotCopies))
-        {
-            ProcessPhase(session, ItemModificationPhases.SlotCopies);
-        }
-
-        if (phases.HasFlag(ItemModificationPhases.PresetTraders))
-        {
-            ProcessPhase(session, ItemModificationPhases.PresetTraders);
-        }
-
-        if (phases.HasFlag(ItemModificationPhases.EquipmentSlots))
-        {
-            ProcessPhase(session, ItemModificationPhases.EquipmentSlots);
-        }
-
-        if (phases.HasFlag(ItemModificationPhases.QuestAssorts))
-        {
-            ProcessPhase(session, ItemModificationPhases.QuestAssorts);
-        }
-
-        if (phases.HasFlag(ItemModificationPhases.QuestRewards))
-        {
-            ProcessPhase(session, ItemModificationPhases.QuestRewards);
+            if (phases.HasFlag(phase))
+            {
+                ProcessPhase(session, phase);
+            }
         }
     }
 
@@ -350,6 +354,10 @@ public sealed class CommonLibExtendedBootstrap(
 
             case ItemModificationPhases.QuestRewards:
                 _itemModificationService.ProcessQuestRewards(session.Requests);
+                break;
+
+            case ItemModificationPhases.SpawnClones:
+                _itemModificationService.ProcessSpawnClones(session.Requests);
                 break;
 
             default:

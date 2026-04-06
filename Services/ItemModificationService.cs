@@ -14,7 +14,8 @@ public sealed class ItemModificationService(
     PresetTraderOfferHelper presetTraderOfferHelper,
     QuestRewardHelper questRewardHelper,
     EquipmentSlotHelper equipmentSlotHelper,
-    CompatibilityCloneHelper compatibilityCloneHelper)
+    CompatibilityCloneHelper compatibilityCloneHelper,
+    SpawnCloneHelper spawnCloneHelper)
 {
     public void ProcessCloneCompatibilities(IEnumerable<ItemModificationRequest> requests)
     {
@@ -39,6 +40,30 @@ public sealed class ItemModificationService(
                 compatibilityService.AddAmmoClone(request.ItemId, request.Config.ItemTplToClone);
                 debugLogHelper.LogService("CompatibilityService",
                     $"Added ammo clone compatibility for {request.ItemId} based on {request.Config.ItemTplToClone}");
+            }
+        }
+    }
+
+    public void ProcessSpawnClones(IEnumerable<ItemModificationRequest> requests)
+    {
+        foreach (var request in requests)
+        {
+            if (!ValidateRequest(request))
+            {
+                continue;
+            }
+
+            if (request.Extras.AddSpawnsInSamePlacesAsOrigin == true
+                && !string.IsNullOrWhiteSpace(request.Config.ItemTplToClone))
+            {
+                spawnCloneHelper.AddSpawnsInSamePlacesAsOrigin(
+                    request.ItemId,
+                    request.Config.ItemTplToClone,
+                    request.Extras.SpawnWeightComparedToOrigin);
+
+                debugLogHelper.LogService(
+                    "SpawnCloneHelper",
+                    $"Added spawn clone entries for {request.ItemId} based on {request.Config.ItemTplToClone}");
             }
         }
     }
