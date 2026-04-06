@@ -147,6 +147,36 @@ public sealed class CommonLibExtendedBootstrap(
         await Task.CompletedTask;
     }
 
+    public async Task ProcessQuestConditionClones(Assembly assembly, params string[] relativePaths)
+    {
+        var session = GetOrCreateSession(assembly, relativePaths);
+        EnsureCompatibilityInitialized(session);
+
+        if (session.Requests.Count == 0)
+        {
+            await Task.CompletedTask;
+            return;
+        }
+
+        ProcessPhase(session, ItemModificationPhases.QuestConditionClones);
+        await Task.CompletedTask;
+    }
+
+    public async Task ProcessQuestConditions(Assembly assembly, params string[] relativePaths)
+    {
+        var session = GetOrCreateSession(assembly, relativePaths);
+        EnsureCompatibilityInitialized(session);
+
+        if (session.Requests.Count == 0)
+        {
+            await Task.CompletedTask;
+            return;
+        }
+
+        ProcessPhase(session, ItemModificationPhases.QuestConditions);
+        await Task.CompletedTask;
+    }
+
     public async Task ProcessTheRest(Assembly assembly, params string[] relativePaths)
     {
         var session = GetOrCreateSession(assembly, relativePaths);
@@ -304,7 +334,9 @@ public sealed class CommonLibExtendedBootstrap(
     ItemModificationPhases.EquipmentSlots,
     ItemModificationPhases.QuestAssorts,
     ItemModificationPhases.QuestRewards,
-    ItemModificationPhases.SpawnClones
+    ItemModificationPhases.SpawnClones,
+    ItemModificationPhases.QuestConditionClones,
+    ItemModificationPhases.QuestConditions
     ];
 
     private void ProcessPhases(ItemProcessingSession session, ItemModificationPhases phases)
@@ -358,6 +390,14 @@ public sealed class CommonLibExtendedBootstrap(
 
             case ItemModificationPhases.SpawnClones:
                 _itemModificationService.ProcessSpawnClones(session.Requests);
+                break;
+
+            case ItemModificationPhases.QuestConditionClones:
+                _itemModificationService.ProcessQuestConditionClones(session.Requests);
+                break;
+
+            case ItemModificationPhases.QuestConditions:
+                _itemModificationService.ProcessQuestConditions(session.Requests);
                 break;
 
             default:

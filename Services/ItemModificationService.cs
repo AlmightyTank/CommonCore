@@ -2,6 +2,7 @@
 using CommonLibExtended.Models;
 using CommonLibExtended.Services.ItemHelpers;
 using SPTarkov.DI.Annotations;
+using SPTarkov.Server.Core.Services;
 
 namespace CommonLibExtended.Services;
 
@@ -15,7 +16,10 @@ public sealed class ItemModificationService(
     QuestRewardHelper questRewardHelper,
     EquipmentSlotHelper equipmentSlotHelper,
     CompatibilityCloneHelper compatibilityCloneHelper,
-    SpawnCloneHelper spawnCloneHelper)
+    SpawnCloneHelper spawnCloneHelper,
+    QuestConditionCloneHelper questConditionCloneHelper,
+    QuestHelper questHelper,
+    DatabaseService databaseService)
 {
     public void ProcessCloneCompatibilities(IEnumerable<ItemModificationRequest> requests)
     {
@@ -40,6 +44,143 @@ public sealed class ItemModificationService(
                 compatibilityService.AddAmmoClone(request.ItemId, request.Config.ItemTplToClone);
                 debugLogHelper.LogService("CompatibilityService",
                     $"Added ammo clone compatibility for {request.ItemId} based on {request.Config.ItemTplToClone}");
+            }
+        }
+    }
+
+    public void ProcessQuestConditions(IEnumerable<ItemModificationRequest> requests)
+    {
+        var quests = databaseService.GetQuests();
+
+        foreach (var request in requests)
+        {
+            if (!ValidateRequest(request))
+            {
+                continue;
+            }
+
+            if (request.Extras?.AddToQuestConditions != true ||
+                request.Extras.QuestConditions == null ||
+                request.Extras.QuestConditions.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var questCondition in request.Extras.QuestConditions)
+            {
+                if (questCondition == null || string.IsNullOrWhiteSpace(questCondition.QuestId))
+                {
+                    debugLogHelper.LogError(
+                        nameof(ItemModificationService),
+                        $"Quest condition config was null or missing questId for {request.ItemId}");
+                    continue;
+                }
+
+                switch (questCondition.Type)
+                {
+                    case "AddWeaponsToKillCondition":
+                        questHelper.AddWeaponsToKillCondition(
+                            quests,
+                            questCondition.QuestId,
+                            [request.ItemId]);
+
+                        debugLogHelper.LogService(
+                            "QuestHelper",
+                            $"Added {request.ItemId} to kill conditions for quest {questCondition.QuestId}");
+                        break;
+
+                    case "AddWeaponsToFindOrHandoverCondition":
+                        questHelper.AddWeaponsToFindOrHandoverCondition(
+                            quests,
+                            questCondition.QuestId,
+                            [request.ItemId]);
+
+                        debugLogHelper.LogService(
+                            "QuestHelper",
+                            $"Added {request.ItemId} to find/handover conditions for quest {questCondition.QuestId}");
+                        break;
+
+                    case "AddArmorToEquipmentExclusive":
+                        questHelper.AddArmorToEquipmentExclusive(
+                            quests,
+                            questCondition.QuestId,
+                            [request.ItemId]);
+
+                        debugLogHelper.LogService(
+                            "QuestHelper",
+                            $"Added {request.ItemId} to equipment exclusive conditions for quest {questCondition.QuestId}");
+                        break;
+
+                    case "AddWeaponModToCondition":
+                        if (string.IsNullOrWhiteSpace(questCondition.ExistingModId))
+                        {
+                            debugLogHelper.LogError(
+                                "QuestHelper",
+                                $"existingModId is required for AddWeaponModToCondition on item {request.ItemId}");
+                            break;
+                        }
+
+                        questHelper.AddWeaponModToCondition(
+                            quests,
+                            questCondition.QuestId,
+                            request.ItemId,
+                            questCondition.ExistingModId,
+                            questCondition.IsInclusive ?? true);
+
+                        debugLogHelper.LogService(
+                            "QuestHelper",
+                            $"Added mod {request.ItemId} to weapon mod conditions for quest {questCondition.QuestId}");
+                        break;
+
+                    case "AddDogtagsToQuests":
+                        if (string.IsNullOrWhiteSpace(questCondition.Faction))
+                        {
+                            debugLogHelper.LogError(
+                                "QuestHelper",
+                                $"faction is required for AddDogtagsToQuests on item {request.ItemId}");
+                            break;
+                        }
+
+                        questHelper.AddDogtagsToQuests(
+                            quests,
+                            questCondition.QuestId,
+                            [request.ItemId],
+                            questCondition.Faction);
+
+                        debugLogHelper.LogService(
+                            "QuestHelper",
+                            $"Added dogtag {request.ItemId} to quest {questCondition.QuestId} for faction {questCondition.Faction}");
+                        break;
+
+                    default:
+                        debugLogHelper.LogError(
+                            "QuestHelper",
+                            $"Unknown quest condition type '{questCondition.Type}' for item {request.ItemId}");
+                        break;
+                }
+            }
+        }
+    }
+
+    public void ProcessQuestConditionClones(IEnumerable<ItemModificationRequest> requests)
+    {
+        foreach (var request in requests)
+        {
+            if (!ValidateRequest(request))
+            {
+                continue;
+            }
+
+            if (request.Extras.IncludeInSameQuestsAsOrigin == true
+                && !string.IsNullOrWhiteSpace(request.Config.ItemTplToClone))
+            {
+                questConditionCloneHelper.AddToSameQuestsAsOrigin(
+                    request.ItemId,
+                    request.Config.ItemTplToClone);
+
+                debugLogHelper.LogService(
+                    "QuestConditionCloneHelper",
+                    $"Added {request.ItemId} to same quest conditions as {request.Config.ItemTplToClone}");
             }
         }
     }

@@ -56,6 +56,10 @@ public sealed class ItemModificationExtras
     [JsonPropertyName("magCloneCartridgeId")]
     public string? MagCloneCartridgeId { get; set; }
 
+    [JsonPropertyName("includeInSameQuestsAsOrigin")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IncludeInSameQuestsAsOrigin { get; set; }
+
     [JsonPropertyName("addSpawnsInSamePlacesAsOrigin")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? AddSpawnsInSamePlacesAsOrigin { get; set; }
@@ -63,6 +67,12 @@ public sealed class ItemModificationExtras
     [JsonPropertyName("spawnWeightComparedToOrigin")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? SpawnWeightComparedToOrigin { get; set; }
+
+    [JsonPropertyName("addToQuestConditions")]
+    public bool? AddToQuestConditions { get; set; }
+
+    [JsonPropertyName("questConditions")]
+    public List<QuestConditionConfig>? QuestConditions { get; set; }
 
     public void Validate(string itemId)
     {
@@ -74,6 +84,11 @@ public sealed class ItemModificationExtras
 
         if (AddToQuestAssorts == true && QuestAssorts == null)
             throw new InvalidDataException($"[{itemId}] questAssorts is required when addToQuestAssorts is true");
+
+        if (AddToQuestConditions == true && (QuestConditions == null || QuestConditions.Count == 0))
+        {
+            throw new InvalidDataException($"[{itemId}] questConditions is required when addToQuestConditions is true");
+        }
 
         if (PresetTraders != null && PresetTraders.Count == 0)
             throw new InvalidDataException($"[{itemId}] presetTraders was provided but is empty");
@@ -198,4 +213,22 @@ public sealed class TraderOfferSettings
 
     [JsonPropertyName("buyRestrictionMax")]
     public int BuyRestrictionMax { get; set; } = 0;
+}
+
+public sealed class QuestConditionConfig
+{
+    [JsonPropertyName("questId")]
+    public string QuestId { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("existingModId")]
+    public string? ExistingModId { get; set; }
+
+    [JsonPropertyName("isInclusive")]
+    public bool? IsInclusive { get; set; }
+
+    [JsonPropertyName("faction")]
+    public string? Faction { get; set; }
 }
