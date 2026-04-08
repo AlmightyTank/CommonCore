@@ -191,15 +191,6 @@ public sealed class PresetTraderConfig
     public TraderOfferSettings LoyalLevelItems { get; set; } = new();
 }
 
-public sealed class ConfigBarterScheme
-{
-    [JsonPropertyName("template")]
-    public string Template { get; set; } = string.Empty;
-
-    [JsonPropertyName("count")]
-    public int Count { get; set; }
-}
-
 public sealed class TraderOfferSettings
 {
     [JsonPropertyName("loyalLevel")]
