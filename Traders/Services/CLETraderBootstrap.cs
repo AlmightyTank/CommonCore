@@ -7,6 +7,7 @@ using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Utils;
+using SPTarkov.Server.Core.Routers;
 using System.Reflection;
 
 namespace CommonLibExtended.Services;
@@ -36,7 +37,10 @@ public sealed class CLETraderBootstrap(
         Func<string, TraderAssort> loadTraderAssort,
         Func<string, CustomTraderSettings> loadTraderSettings,
         string? firstName = null,
-        string description = "")
+        string description = "",
+        ImageRouter? imageRouter = null,
+        string? traderImageRelativePath = null,
+        string? avatarRouteOverride = null)
     {
         var traderBasePath = _modPathHelper.GetFullPath(assembly, traderBaseRelativePath);
         var assortPath = _modPathHelper.GetFullPath(assembly, assortRelativePath);
@@ -66,6 +70,13 @@ public sealed class CLETraderBootstrap(
 
         settings.Validate(traderBase.Id);
 
+        RegisterTraderImageIfProvided(
+            assembly,
+            traderBase,
+            imageRouter,
+            traderImageRelativePath,
+            avatarRouteOverride);
+
         _customTraderSettingsHelper.ApplyBaseSettings(traderBase, settings);
         _customTraderSettingsHelper.ApplyAssortSettings(assort, settings);
         _customTraderSettingsHelper.ApplyFleaSettings(ragfairConfig, traderBase, settings);
@@ -83,5 +94,52 @@ public sealed class CLETraderBootstrap(
             settings.UnlockedByDefault);
 
         _logger.Info($"Loaded custom trader {traderBase.Id}");
+    }
+
+    private void RegisterTraderImageIfProvided(
+        Assembly assembly,
+        TraderBase traderBase,
+        ImageRouter? imageRouter,
+        string? traderImageRelativePath,
+        string? avatarRouteOverride)
+    {
+        if (imageRouter == null || string.IsNullOrWhiteSpace(traderImageRelativePath))
+        {
+            return;
+        }
+
+        var imagePath = _modPathHelper.GetFullPath(assembly, traderImageRelativePath);
+        if (!File.Exists(imagePath))
+        {
+            _logger.Warning($"Trader image file not found: {imagePath}");
+            return;
+        }
+
+        var avatarRoute = !string.IsNullOrWhiteSpace(avatarRouteOverride)
+            ? avatarRouteOverride
+            : NormalizeAvatarRoute(traderBase.Avatar);
+
+        if (string.IsNullOrWhiteSpace(avatarRoute))
+        {
+            _logger.Warning($"Unable to resolve avatar route for trader {traderBase.Id}");
+            return;
+        }
+
+        imageRouter.AddRoute(avatarRoute, imagePath);
+        _logger.Info($"Registered trader image route '{avatarRoute}' for trader {traderBase.Id}");
+    }
+
+    private static string NormalizeAvatarRoute(string? avatar)
+    {
+        if (string.IsNullOrWhiteSpace(avatar))
+        {
+            return string.Empty;
+        }
+
+        return avatar
+            .Replace(".png", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(".jpg", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(".jpeg", "", StringComparison.OrdinalIgnoreCase)
+            .Trim();
     }
 }
