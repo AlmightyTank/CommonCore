@@ -10,15 +10,15 @@ using LogLevel = SPTarkov.Server.Core.Models.Spt.Logging.LogLevel;
 namespace CommonLibExtended.Items.Services;
 
 [Injectable(InjectionType.Singleton)]
-public sealed class CommonLibExtendedBootstrap(
-    ISptLogger<CommonLibExtendedBootstrap> logger,
+public sealed class CLEItemBootstrap(
+    ISptLogger<CLEItemBootstrap> logger,
     ItemModificationConfigLoader itemModificationConfigLoader,
     CompatibilityService compatibilityService,
     ItemModificationService itemModificationService,
     ModPathHelper modPathHelper,
     PresetRegistryLoader presetRegistryLoader)
 {
-    private readonly ISptLogger<CommonLibExtendedBootstrap> _logger = logger;
+    private readonly ISptLogger<CLEItemBootstrap> _logger = logger;
     private readonly ItemModificationConfigLoader _itemModificationConfigLoader = itemModificationConfigLoader;
     private readonly CompatibilityService _compatibilityService = compatibilityService;
     private readonly ItemModificationService _itemModificationService = itemModificationService;
