@@ -19,6 +19,11 @@
 		<PackageReference Include="WTT-ServerCommonLib" Version="2.0.15" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Traders\Models\" />
+	  <Folder Include="Traders\Helpers\" />
+	</ItemGroup>
+
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<Exec Command="call &quot;$(ProjectDir)deploy.cmd&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetDir)&quot; &quot;$(AssemblyName)&quot;" />
 	</Target>

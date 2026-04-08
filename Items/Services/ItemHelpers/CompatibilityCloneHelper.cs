@@ -1,6 +1,6 @@
 using CommonLibExtended.Helpers;
+using CommonLibExtended.Items.Services;
 using CommonLibExtended.Models;
-using CommonLibExtended.Services;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
@@ -9,7 +9,7 @@ using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public class CompatibilityCloneHelper(

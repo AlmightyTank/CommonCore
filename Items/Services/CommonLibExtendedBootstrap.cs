@@ -7,7 +7,7 @@ using SPTarkov.Server.Core.Models.Utils;
 using System.Reflection;
 using LogLevel = SPTarkov.Server.Core.Models.Spt.Logging.LogLevel;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Items.Services;
 
 [Injectable(InjectionType.Singleton)]
 public sealed class CommonLibExtendedBootstrap(

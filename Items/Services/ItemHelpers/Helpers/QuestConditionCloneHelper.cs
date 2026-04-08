@@ -2,7 +2,7 @@ using CommonLibExtended.Helpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 
 [Injectable]
 public sealed class QuestConditionCloneHelper(

@@ -6,7 +6,7 @@ using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Items.Services;
 
 [Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 5)]
 public sealed class CompatibilityService(

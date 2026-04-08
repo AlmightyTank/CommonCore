@@ -3,7 +3,7 @@ using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using System.Text.Json.Serialization;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Models;
+namespace CommonLibExtended.Items.Models;
 
 public sealed class PresetDto
 {

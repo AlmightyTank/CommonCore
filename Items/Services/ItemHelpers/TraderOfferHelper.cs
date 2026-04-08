@@ -3,8 +3,9 @@ using CommonLibExtended.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
+using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public sealed class TraderOfferHelper(DebugLogHelper debugLogHelper)

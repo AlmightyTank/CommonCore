@@ -1,9 +1,8 @@
 ﻿using CommonLibExtended.Constants;
 using CommonLibExtended.Core;
 using CommonLibExtended.Helpers;
+using CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 using CommonLibExtended.Models;
-using CommonLibExtended.Services;
-using CommonLibExtended.Services.ItemHelpers.Helpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
@@ -11,7 +10,7 @@ using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Services;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public sealed class QuestAssortHelper(
@@ -438,7 +437,7 @@ public sealed class QuestAssortHelper(
                     trader.Assort,
                     configAssortId,
                     rootItem,
-                    MapBarters(traderConfig.Barters),
+                    traderConfig.Barters,
                     offerSettings,
                     "QuestAssortHelper",
                     $"standard rebuild trader={traderId}, assort={configAssortId}, item={request.ItemId}");
@@ -791,20 +790,6 @@ public sealed class QuestAssortHelper(
         }
 
         return traderKey;
-    }
-
-    private static List<Models.ConfigBarterScheme>? MapBarters(List<WTTServerCommonLib.Models.ConfigBarterScheme>? source)
-    {
-        if (source == null || source.Count == 0)
-        {
-            return null;
-        }
-
-        return source.Select(x => new Models.ConfigBarterScheme
-        {
-            Template = x.Template,
-            Count = (int)(x.Count ?? 0)
-        }).ToList();
     }
 
     private static TraderOfferSettings? MapTraderOfferSettings(ConfigBarterSettings? source)

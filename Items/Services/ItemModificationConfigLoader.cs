@@ -5,7 +5,7 @@ using CommonLibExtended.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Utils;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Items.Services;
 
 [Injectable]
 public sealed class ItemModificationConfigLoader(

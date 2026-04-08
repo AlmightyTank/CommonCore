@@ -3,7 +3,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Services;
 using System.Globalization;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public sealed class SpawnCloneHelper(

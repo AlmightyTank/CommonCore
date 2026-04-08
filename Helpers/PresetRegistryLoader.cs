@@ -1,5 +1,5 @@
-using CommonLibExtended.Models;
-using CommonLibExtended.Services;
+using CommonLibExtended.Items.Models;
+using CommonLibExtended.Items.Services;
 using SPTarkov.DI.Annotations;
 using System.Reflection;
 using System.Text.Json;

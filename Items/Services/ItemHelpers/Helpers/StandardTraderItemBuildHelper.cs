@@ -5,7 +5,7 @@ using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services.ItemHelpers.Helpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 
 [Injectable]
 public sealed class StandardTraderItemBuildHelper(
@@ -102,9 +102,9 @@ public sealed class StandardTraderItemBuildHelper(
 
                 // Plate slot / locked slot / single fixed filter are all good signals
                 // that this item should get attached children in the trader offer tree.
-                if ((filter.Plate.HasValue && !filter.Plate.Value.IsEmpty)
+                if (filter.Plate.HasValue && !filter.Plate.Value.IsEmpty
                     || (filter.Locked ?? false)
-                    || (filter.Filter != null && filter.Filter.Count == 1))
+                    || filter.Filter != null && filter.Filter.Count == 1)
                 {
                     return true;
                 }

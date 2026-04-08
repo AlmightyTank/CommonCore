@@ -1,10 +1,11 @@
 ﻿using CommonLibExtended.Helpers;
+using CommonLibExtended.Items.Services.ItemHelpers;
+using CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 using CommonLibExtended.Models;
-using CommonLibExtended.Services.ItemHelpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Items.Services;
 
 [Injectable]
 public sealed class ItemModificationService(
@@ -30,9 +31,9 @@ public sealed class ItemModificationService(
                 continue;
             }
 
-            if ((request.Extras?.AmmoCloneCompatibility == true)
-                || (request.Extras?.WeaponCloneChamberCompatibility == true)
-                || (request.Extras?.MagCloneCartridgeCompatibility == true))
+            if (request.Extras?.AmmoCloneCompatibility == true
+                || request.Extras?.WeaponCloneChamberCompatibility == true
+                || request.Extras?.MagCloneCartridgeCompatibility == true)
             {
                 compatibilityCloneHelper.Process(request);
                 debugLogHelper.LogService("CompatibilityCloneHelper", $"Added clone compatibility for {request.ItemId}");

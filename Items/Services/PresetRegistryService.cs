@@ -2,7 +2,7 @@ using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Services;
+namespace CommonLibExtended.Items.Services;
 
 [Injectable]
 public sealed class PresetRegistryService

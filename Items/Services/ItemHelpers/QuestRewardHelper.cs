@@ -1,13 +1,13 @@
 using CommonLibExtended.Helpers;
+using CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 using CommonLibExtended.Models;
-using CommonLibExtended.Services.ItemHelpers.Helpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public sealed class QuestRewardHelper(

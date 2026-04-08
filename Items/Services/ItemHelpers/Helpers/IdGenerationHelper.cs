@@ -1,7 +1,7 @@
 ﻿using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Common;
 
-namespace CommonLibExtended.Services.ItemHelpers.Helpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 
 [Injectable]
 public sealed class IdGenerationHelper

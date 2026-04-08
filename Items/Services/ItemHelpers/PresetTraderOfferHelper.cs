@@ -1,15 +1,16 @@
 ﻿using CommonLibExtended.Constants;
 using CommonLibExtended.Core;
 using CommonLibExtended.Helpers;
+using CommonLibExtended.Items.Models;
+using CommonLibExtended.Items.Services;
+using CommonLibExtended.Items.Services.ItemHelpers.Helpers;
 using CommonLibExtended.Models;
-using CommonLibExtended.Services;
-using CommonLibExtended.Services.ItemHelpers.Helpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Services;
 using WTTServerCommonLib.Models;
 
-namespace CommonLibExtended.Services.ItemHelpers;
+namespace CommonLibExtended.Items.Services.ItemHelpers;
 
 [Injectable]
 public sealed class PresetTraderOfferHelper(
