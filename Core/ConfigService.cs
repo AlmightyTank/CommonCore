@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace CommonLibExtended.Core;
 
-[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 5)]
+[Injectable(TypePriority = OnLoadOrder.PostDBModLoader)]
 public sealed class ConfigService(CLESettings settings) : IOnLoad
 {
     private readonly CLESettings _settings = settings;
