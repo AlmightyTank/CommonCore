@@ -40,6 +40,22 @@ public sealed class CustomTraderSettings
     [JsonPropertyName("debugLogging")]
     public bool DebugLogging { get; set; }
 
+    // NEW
+    [JsonPropertyName("useBasePriceGeneration")]
+    public bool UseBasePriceGeneration { get; set; } = false;
+
+    [JsonPropertyName("basePriceSource")]
+    public string BasePriceSource { get; set; } = "Handbook";
+
+    [JsonPropertyName("basePriceMultiplier")]
+    public double BasePriceMultiplier { get; set; } = 1.0;
+
+    [JsonPropertyName("basePriceFloor")]
+    public double BasePriceFloor { get; set; } = 1.0;
+
+    [JsonPropertyName("repriceCashOffersOnly")]
+    public bool RepriceCashOffersOnly { get; set; } = true;
+
     public void Validate(string traderId)
     {
         if (MinLevel < 1)
@@ -75,6 +91,16 @@ public sealed class CustomTraderSettings
         if (PriceMultiplier <= 0)
         {
             throw new InvalidDataException($"[{traderId}] priceMultiplier must be > 0");
+        }
+
+        if (BasePriceMultiplier <= 0)
+        {
+            throw new InvalidDataException($"[{traderId}] basePriceMultiplier must be > 0");
+        }
+
+        if (BasePriceFloor < 0)
+        {
+            throw new InvalidDataException($"[{traderId}] basePriceFloor must be >= 0");
         }
     }
 }
