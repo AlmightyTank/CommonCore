@@ -1,16 +1,25 @@
 {
     "Debug": {
         "Enabled": true,
-        "ForceAll": true,
+        "ForceAll": false,
         "Files": {
-            "ConfigHelper": true,
-            "QuestAssortHelper": true,
-            "TraderBootstrapService": true,
-            "QuestRewardHelper": true
+            "ConfigHelper": false,
+            "QuestAssortHelper": false,
+            "TraderBootstrapService": false,
+            "QuestRewardHelper": false,
+            "CustomTraderHelper": true,
+            "CustomTraderSettingsHelper": true,
+            "CustomTraderSettings": true,
+            "CustomTraderUnlockRegistration": true,
+            "CLETraderBootstrap": true,
+            "CustomTraderLoader": true,
+            "CustomTraderUnlockService": true
         },
         "Functions": {
-            "QuestAssortHelper.Process": true,
-            "QuestRewardHelper.Process": true
+            "QuestAssortHelper.Process": false,
+            "QuestRewardHelper.Process": false,
+            "CustomTraderSettingsHelper.ApplyBasePricing": true,
+            "CustomTraderLoader.LoadTrader": true
         }
     }
 }
