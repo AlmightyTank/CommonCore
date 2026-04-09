@@ -4,6 +4,7 @@ using CommonLibExtended.Helpers;
 using CommonLibExtended.Models;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Utils;
+using WTTServerCommonLib.Models;
 
 namespace CommonLibExtended.Items.Services;
 
@@ -136,7 +137,7 @@ public sealed class ItemModificationConfigLoader(
     {
         var raw = element.GetRawText();
 
-        var config = TryDeserialize<ItemModificationConfig>(raw);
+        var config = TryDeserialize<CustomItemConfig>(raw);
         if (config == null)
         {
             _debugLogHelper.LogError(
