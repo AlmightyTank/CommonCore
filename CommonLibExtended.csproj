@@ -25,6 +25,6 @@
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-		<Exec Command="call &quot;$(ProjectDir)deploy.cmd&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetDir)&quot; &quot;$(AssemblyName)&quot;" />
+		<Exec Command="call &quot;$(ProjectDir)\build\deploy.cmd&quot; &quot;$(ProjectDir)&quot; &quot;$(TargetDir)&quot; &quot;$(AssemblyName)&quot;" />
 	</Target>
 </Project>
