@@ -11,11 +11,6 @@ public static class DebugDumpHelper
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    static DebugDumpHelper()
-    {
-        Options.Converters.Add(new MongoIdConverter());
-    }
-
     public static string DumpItems(object obj)
     {
         try

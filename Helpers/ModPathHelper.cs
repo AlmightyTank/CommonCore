@@ -30,9 +30,4 @@ public sealed class ModPathHelper
     {
         return Path.GetFullPath(Path.Combine(GetModRoot(assembly), relativePath));
     }
-
-    public string GetDbPath(Assembly assembly)
-    {
-        return GetFullPath(assembly, "db");
-    }
 }

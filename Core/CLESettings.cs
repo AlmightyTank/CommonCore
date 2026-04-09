@@ -19,10 +19,6 @@ public class CLESettings
     [JsonPropertyName("defaultTraderId")]
     public string DefaultTraderId { get; set; } = "5a7c2eca46aef81a7ca2145d";
 
-    [JsonPropertyName("handbookTraderFallbacks")]
-    public Dictionary<string, string> HandbookTraderFallbacks { get; set; } =
-        new(StringComparer.OrdinalIgnoreCase);
-
     public void SetDefaultTrader(MongoId traderId, bool forceAllItems = true)
     {
         if (string.IsNullOrWhiteSpace(traderId))
