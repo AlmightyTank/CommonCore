@@ -80,6 +80,6 @@ public class DebugLogHelper(CLESettings settings)
             ? fileName
             : $"{fileName}.{functionName}";
 
-        return $"[CommonLibExtended] [{level}] [{scope}] ";
+        return $"[CLE] [{level}] [{scope}] ";
     }
 }
