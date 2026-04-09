@@ -113,7 +113,7 @@ public sealed class PresetTraderOfferHelper(
             offerId,
             builtPreset.Items,
             config.Barters,
-            config.LoyalLevelItems,
+            config.BarterSettings,
             "PresetTraderOffer",
             $"sourceAssort={sourceAssortId}, preset={preset.Id}, trader={traderId}");
 

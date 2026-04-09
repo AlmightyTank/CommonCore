@@ -349,7 +349,7 @@ public sealed class QuestAssortHelper(
                     offerId,
                     builtPreset.Items,
                     presetConfig.Barters,
-                    presetConfig.LoyalLevelItems,
+                    presetConfig.BarterSettings,
                     "QuestAssortHelper",
                     $"preset rebuild trader={traderId}, sourceAssort={sourceAssortId}, offerId={offerId}, preset={preset.Id}");
 

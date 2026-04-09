@@ -184,11 +184,11 @@ public sealed class PresetTraderConfig
     [JsonPropertyName("presetId")]
     public string PresetId { get; set; } = string.Empty;
 
-    [JsonPropertyName("barter_scheme")]
+    [JsonPropertyName("barters")]
     public List<ConfigBarterScheme> Barters { get; set; } = [];
 
-    [JsonPropertyName("loyal_level_items")]
-    public TraderOfferSettings LoyalLevelItems { get; set; } = new();
+    [JsonPropertyName("barterSettings")]
+    public TraderOfferSettings BarterSettings { get; set; } = new();
 }
 
 public sealed class TraderOfferSettings
