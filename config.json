@@ -7,19 +7,26 @@
             "QuestAssortHelper": false,
             "TraderBootstrapService": false,
             "QuestRewardHelper": false,
-            "CustomTraderHelper": true,
-            "CustomTraderSettingsHelper": true,
-            "CustomTraderSettings": true,
-            "CustomTraderUnlockRegistration": true,
+            "CustomTraderHelper": false,
+            "CustomTraderSettingsHelper": false,
+            "CustomTraderSettings": false,
+            "CustomTraderUnlockRegistration": false,
             "CLETraderBootstrap": true,
             "CustomTraderLoader": true,
-            "CustomTraderUnlockService": true
+            "CustomTraderUnlockService": false,
+            "CustomTraderPricingRegistry": false,
+            "CustomTraderPricingPostProcessor": false,
+            "TraderPricingService": false
         },
         "Functions": {
             "QuestAssortHelper.Process": false,
             "QuestRewardHelper.Process": false,
-            "CustomTraderSettingsHelper.ApplyBasePricing": true,
-            "CustomTraderLoader.LoadTrader": true
+            "CustomTraderSettingsHelper.ApplyAssortPricingOnly": false,
+            "CustomTraderSettingsHelper.ApplyPricing": false,
+            "CustomTraderSettingsHelper.ApplyPriceMultiplier": false,
+            "CustomTraderLoader.LoadTrader": true,
+            "TraderPricingService.GetItemPrice": false,
+            "CustomTraderPricingPostProcessor.OnLoad": true
         }
     }
 }
