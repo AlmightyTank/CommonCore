@@ -1,13 +1,10 @@
 using CommonLibExtended.Helpers;
-using CommonLibExtended.Models;
 using CommonLibExtended.Services;
-using CommonLibExtended.Traders.Helpers;
 using CommonLibExtended.Traders.Models;
 using SPTarkov.DI.Annotations;
-using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Routers;
+using SPTarkov.Server.Core.Utils;
 using System.Reflection;
 
 namespace CommonLibExtended.Traders.Services;
@@ -17,26 +14,26 @@ public sealed class CLETraderBootstrap(
     DebugLogHelper debugLogHelper,
     ModPathHelper modPathHelper,
     CustomTraderLoader customTraderLoader,
-    CustomTraderUnlockService customTraderUnlockService)
+    CustomTraderUnlockService customTraderUnlockService,
+    CustomTraderPricingRegistry customTraderPricingRegistry,
+    ImageRouter imageRouter,
+    JsonUtil jsonUtil)
 {
     private readonly DebugLogHelper _debugLogHelper = debugLogHelper;
     private readonly ModPathHelper _modPathHelper = modPathHelper;
     private readonly CustomTraderLoader _customTraderLoader = customTraderLoader;
     private readonly CustomTraderUnlockService _customTraderUnlockService = customTraderUnlockService;
+    private readonly CustomTraderPricingRegistry _customTraderPricingRegistry = customTraderPricingRegistry;
+    private readonly ImageRouter _imageRouter = imageRouter;
+    private readonly JsonUtil _jsonUtil = jsonUtil;
 
     public void LoadTrader(
         Assembly assembly,
         string traderBaseRelativePath,
         string assortRelativePath,
         string settingsRelativePath,
-        TraderConfig traderConfig,
-        RagfairConfig ragfairConfig,
-        Func<string, TraderBase> loadTraderBase,
-        Func<string, TraderAssort> loadTraderAssort,
-        Func<string, CustomTraderSettings> loadTraderSettings,
         string? firstName = null,
         string description = "",
-        ImageRouter? imageRouter = null,
         string? traderImageRelativePath = null,
         string? avatarRouteOverride = null)
     {
@@ -44,34 +41,15 @@ public sealed class CLETraderBootstrap(
         var assortPath = _modPathHelper.GetFullPath(assembly, assortRelativePath);
         var settingsPath = _modPathHelper.GetFullPath(assembly, settingsRelativePath);
 
-        var traderBase = loadTraderBase(traderBasePath);
-        var assort = loadTraderAssort(assortPath);
-        var settings = loadTraderSettings(settingsPath);
-
-        if (traderBase == null)
-        {
-            _debugLogHelper.LogError(nameof(CLETraderBootstrap), $"Failed to load trader base from {traderBasePath}");
-            return;
-        }
-
-        if (assort == null)
-        {
-            _debugLogHelper.LogError(nameof(CLETraderBootstrap), $"Failed to load trader assort from {assortPath}");
-            return;
-        }
-
-        if (settings == null)
-        {
-            _debugLogHelper.LogError(nameof(CLETraderBootstrap), $"Failed to load trader settings from {settingsPath}");
-            return;
-        }
+        var traderBase = LoadRequired<TraderBase>(traderBasePath, "trader base");
+        var assort = LoadRequired<TraderAssort>(assortPath, "trader assort");
+        var settings = LoadRequired<CustomTraderSettings>(settingsPath, "trader settings");
 
         settings.Validate(traderBase.Id);
 
         RegisterTraderImageIfProvided(
             assembly,
             traderBase,
-            imageRouter,
             traderImageRelativePath,
             avatarRouteOverride);
 
@@ -79,8 +57,6 @@ public sealed class CLETraderBootstrap(
             traderBase,
             assort,
             settings,
-            traderConfig,
-            ragfairConfig,
             firstName ?? traderBase.Nickname ?? traderBase.Name ?? "Trader",
             description);
 
@@ -89,17 +65,29 @@ public sealed class CLETraderBootstrap(
             settings.MinLevel,
             settings.UnlockedByDefault);
 
+        _customTraderPricingRegistry.Register(traderBase.Id, settings);
+
         _debugLogHelper.LogService(nameof(CLETraderBootstrap), $"Loaded custom trader {traderBase.Id}");
+    }
+
+    private T LoadRequired<T>(string path, string label) where T : class
+    {
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"{label} file not found: {path}", path);
+        }
+
+        var result = _jsonUtil.Deserialize<T>(File.ReadAllText(path));
+        return result ?? throw new InvalidDataException($"Failed to deserialize {label}: {path}");
     }
 
     private void RegisterTraderImageIfProvided(
         Assembly assembly,
         TraderBase traderBase,
-        ImageRouter? imageRouter,
         string? traderImageRelativePath,
         string? avatarRouteOverride)
     {
-        if (imageRouter == null || string.IsNullOrWhiteSpace(traderImageRelativePath))
+        if (string.IsNullOrWhiteSpace(traderImageRelativePath))
         {
             return;
         }
@@ -121,7 +109,7 @@ public sealed class CLETraderBootstrap(
             return;
         }
 
-        imageRouter.AddRoute(avatarRoute, imagePath);
+        _imageRouter.AddRoute(avatarRoute, imagePath);
         _debugLogHelper.LogService(nameof(CLETraderBootstrap), $"Registered trader image route '{avatarRoute}' for trader {traderBase.Id}");
     }
 

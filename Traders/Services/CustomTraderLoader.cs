@@ -22,8 +22,6 @@ public sealed class CustomTraderLoader(
         TraderBase traderBase,
         TraderAssort assort,
         CustomTraderSettings settings,
-        TraderConfig traderConfig,
-        RagfairConfig ragfairConfig,
         string firstName,
         string description)
     {
@@ -49,8 +47,8 @@ public sealed class CustomTraderLoader(
 
         _customTraderSettingsHelper.ApplyBaseSettings(traderBase, settings);
         _customTraderSettingsHelper.ApplyAssortSettings(assort, settings);
-        _customTraderSettingsHelper.ApplyFleaSettings(ragfairConfig, traderBase, settings);
-        _customTraderSettingsHelper.ApplyRefreshSettings(traderConfig, traderBase, settings);
+        _customTraderSettingsHelper.ApplyFleaSettings(traderBase, settings);
+        _customTraderSettingsHelper.ApplyRefreshSettings(traderBase, settings);
 
         _customTraderHelper.AddTraderToDb(traderBase, assort);
         _customTraderHelper.AddTraderToLocales(traderBase, firstName, description);

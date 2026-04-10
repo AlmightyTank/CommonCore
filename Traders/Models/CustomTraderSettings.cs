@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace CommonLibExtended.Traders.Models;
 
@@ -56,6 +56,45 @@ public sealed class CustomTraderSettings
     [JsonPropertyName("repriceCashOffersOnly")]
     public bool RepriceCashOffersOnly { get; set; } = true;
 
+    [JsonPropertyName("useFleaPricing")]
+    public bool UseFleaPricing { get; set; } = false;
+
+    [JsonPropertyName("fleaWeight")]
+    public double FleaWeight { get; set; } = 0.3;
+
+    [JsonPropertyName("handbookWeight")]
+    public double HandbookWeight { get; set; } = 0.7;
+
+    [JsonPropertyName("useAttachmentPricing")]
+    public bool UseAttachmentPricing { get; set; } = true;
+
+    [JsonPropertyName("useAttachmentWeighting")]
+    public bool UseAttachmentWeighting { get; set; } = false;
+
+    [JsonPropertyName("minAttachmentPrice")]
+    public double MinAttachmentPrice { get; set; } = 1000;
+
+    [JsonPropertyName("attachmentCategoryMultipliers")]
+    public Dictionary<string, double> AttachmentCategoryMultipliers { get; set; } = [];
+
+    [JsonPropertyName("rebuildItemBarters")]
+    public bool RebuildItemBarters { get; set; } = false;
+
+    [JsonPropertyName("barterValueTolerance")]
+    public double BarterValueTolerance { get; set; } = 0.15;
+
+    [JsonPropertyName("maxBarterComponents")]
+    public int MaxBarterComponents { get; set; } = 3;
+
+    [JsonPropertyName("preferredBarterTpls")]
+    public List<string> PreferredBarterTpls { get; set; } = [];
+
+    [JsonPropertyName("categoryBasePrices")]
+    public Dictionary<string, double> CategoryBasePrices { get; set; } = [];
+
+    [JsonPropertyName("rarityMultipliers")]
+    public Dictionary<string, double>? RarityMultipliers { get; set; } = [];
+
     public void Validate(string traderId)
     {
         if (MinLevel < 1)
@@ -101,6 +140,26 @@ public sealed class CustomTraderSettings
         if (BasePriceFloor < 0)
         {
             throw new InvalidDataException($"[{traderId}] basePriceFloor must be >= 0");
+        }
+
+        if (BarterValueTolerance < 0 || BarterValueTolerance > 1)
+        {
+            throw new InvalidDataException($"[{traderId}] barterValueTolerance must be between 0 and 1");
+        }
+
+        if (MaxBarterComponents < 1)
+        {
+            throw new InvalidDataException($"[{traderId}] maxBarterComponents must be >= 1");
+        }
+
+        if (CategoryBasePrices.Values.Any(x => x < 0))
+        {
+            throw new InvalidDataException($"[{traderId}] categoryBasePrices cannot contain negative values");
+        }
+
+        if (RarityMultipliers.Values.Any(x => x <= 0))
+        {
+            throw new InvalidDataException($"[{traderId}] rarityMultipliers must be > 0");
         }
     }
 }
