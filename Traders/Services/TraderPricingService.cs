@@ -1,6 +1,7 @@
 using CommonLibExtended.Helpers;
 using CommonLibExtended.Traders.Models;
 using SPTarkov.DI.Annotations;
+using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Services;
 
 namespace CommonLibExtended.Traders.Services;
@@ -56,9 +57,15 @@ public sealed class TraderPricingService(
         return ApplyBase(blended, settings);
     }
 
-    public double GetWeaponBuildPrice(string rootId, SPTarkov.Server.Core.Models.Eft.Common.Tables.TraderAssort assort, CustomTraderSettings settings)
+    public double GetWeaponBuildPrice(string rootId, TraderAssort assort, CustomTraderSettings settings)
     {
         if (string.IsNullOrWhiteSpace(rootId) || assort?.Items == null)
+        {
+            return 0;
+        }
+
+        var rootItem = assort.Items.FirstOrDefault(x => x != null && x.Id == rootId);
+        if (rootItem == null)
         {
             return 0;
         }
@@ -79,14 +86,32 @@ public sealed class TraderPricingService(
 
             var price = GetItemPrice(item.Template, settings);
 
-            if (settings.UseAttachmentWeighting)
+            if (currentId == rootId)
             {
-                price *= GetAttachmentMultiplier(item.Template, settings);
-            }
-
-            if (price >= settings.MinAttachmentPrice || currentId == rootId)
-            {
+                price *= GetRootWeaponMultiplier(item.Template, settings);
                 total += price;
+            }
+            else
+            {
+                if (!ShouldCountAttachment(item.Template, settings))
+                {
+                    foreach (var child in assort.Items.Where(x => x != null && x.ParentId == currentId))
+                    {
+                        stack.Push(child.Id);
+                    }
+
+                    continue;
+                }
+
+                if (settings.UseAttachmentWeighting)
+                {
+                    price *= GetAttachmentMultiplier(item.Template, settings);
+                }
+
+                if (price >= settings.MinAttachmentPrice)
+                {
+                    total += price;
+                }
             }
 
             foreach (var child in assort.Items.Where(x => x != null && x.ParentId == currentId))
@@ -96,6 +121,44 @@ public sealed class TraderPricingService(
         }
 
         return Math.Round(total);
+    }
+
+    private double GetRootWeaponMultiplier(string tpl, CustomTraderSettings settings)
+    {
+        var templates = _db.GetTables()?.Templates?.Items;
+        if (templates == null || !templates.TryGetValue(tpl, out var itemTemplate) || itemTemplate == null)
+        {
+            return settings.WeaponBasePriceMultiplier;
+        }
+
+        var weapClassProp = itemTemplate.Properties?.GetType().GetProperty("weapClass");
+        var weapClass = weapClassProp?.GetValue(itemTemplate.Properties)?.ToString()?.ToLowerInvariant();
+
+        if (weapClass == "pistol" || weapClass == "revolver")
+        {
+            return settings.PistolBasePriceMultiplier;
+        }
+
+        return settings.WeaponBasePriceMultiplier;
+    }
+
+    private bool ShouldCountAttachment(string tpl, CustomTraderSettings settings)
+    {
+        if (!settings.CountOnlyWeaponRelevantAttachments)
+        {
+            return true;
+        }
+
+        var templates = _db.GetTables()?.Templates?.Items;
+        if (templates == null || !templates.TryGetValue(tpl, out var itemTemplate) || itemTemplate == null)
+        {
+            return false;
+        }
+
+        var parent = itemTemplate.Parent.ToString() ?? string.Empty;
+
+        return settings.WeaponRelevantAttachmentParents != null &&
+               settings.WeaponRelevantAttachmentParents.Contains(parent, StringComparer.OrdinalIgnoreCase);
     }
 
     public double GetFallbackCategoryRarityPrice(string tpl, CustomTraderSettings settings)

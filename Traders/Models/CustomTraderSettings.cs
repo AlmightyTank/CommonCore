@@ -95,6 +95,18 @@ public sealed class CustomTraderSettings
     [JsonPropertyName("rarityMultipliers")]
     public Dictionary<string, double>? RarityMultipliers { get; set; } = [];
 
+    [JsonPropertyName("weaponBasePriceMultiplier")]
+    public double WeaponBasePriceMultiplier { get; set; } = 0.6;
+
+    [JsonPropertyName("pistolBasePriceMultiplier")]
+    public double PistolBasePriceMultiplier { get; set; } = 0.75;
+
+    [JsonPropertyName("countOnlyWeaponRelevantAttachments")]
+    public bool CountOnlyWeaponRelevantAttachments { get; set; } = true;
+
+    [JsonPropertyName("weaponRelevantAttachmentParents")]
+    public List<string> WeaponRelevantAttachmentParents { get; set; } = new();
+
     public void Validate(string traderId)
     {
         if (MinLevel < 1)
@@ -160,6 +172,16 @@ public sealed class CustomTraderSettings
         if (RarityMultipliers.Values.Any(x => x <= 0))
         {
             throw new InvalidDataException($"[{traderId}] rarityMultipliers must be > 0");
+        }
+
+        if (WeaponBasePriceMultiplier < 0 || WeaponBasePriceMultiplier > 2)
+        {
+            throw new InvalidDataException($"[{traderId}] weaponBasePriceMultiplier must be between 0 and 2");
+        }
+
+        if (PistolBasePriceMultiplier < 0 || PistolBasePriceMultiplier > 2)
+        {
+            throw new InvalidDataException($"[{traderId}] pistolBasePriceMultiplier must be between 0 and 2");
         }
     }
 }
