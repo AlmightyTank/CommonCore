@@ -191,29 +191,29 @@ public class QuestHelper(DebugLogHelper debugLogHelper)
             {
                 foreach (var counterCond in condition.Counter.Conditions)
                 {
-                    var modList = isInclusive
-                        ? (List<List<string>>)counterCond.WeaponModsInclusive
-                        : (List<List<string>>)counterCond.WeaponModsExclusive;
+                    var modList = (isInclusive
+                        ? counterCond.WeaponModsInclusive
+                        : counterCond.WeaponModsExclusive)?.ToList();
 
-                    if (modList != null)
+                    if (modList?.Any(list => list.Contains(existingModId)) == true)
                     {
-                        // Check if existing mod exists anywhere in the list of arrays
-                        var existingModExists = modList
-                            .Any(list => list.Contains(existingModId));
-
-                        if (existingModExists)
+                        if (!modList.Any(list => list.Contains(modId)))
                         {
-                            // Check if our mod already exists
-                            var modAlreadyExists = modList
-                                .Any(list => list.Contains(modId));
+                            modList.Add([modId]);
 
-                            if (!modAlreadyExists)
+                            if (isInclusive)
                             {
-                                // Add as a new single-item array
-                                modList.Add([modId]);
-                                modified = true;
-                                debugLogHelper.LogService("QuestHelper",$"Added mod {modId} to WeaponMods{modType} in quest {questId}");
+                                counterCond.WeaponModsInclusive = modList;
                             }
+                            else
+                            {
+                                counterCond.WeaponModsExclusive = modList;
+                            }
+
+                            modified = true;
+                            debugLogHelper.LogService(
+                                "QuestHelper",
+                                $"Added mod {modId} to WeaponMods{modType} in quest {questId}");
                         }
                     }
                 }

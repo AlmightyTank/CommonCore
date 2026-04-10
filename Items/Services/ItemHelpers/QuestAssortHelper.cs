@@ -809,12 +809,13 @@ public sealed class QuestAssortHelper(
     }
 
     private static void EnsureQuestAssortBucket(
-        Dictionary<string, Dictionary<MongoId, MongoId>?> questAssort,
+        Dictionary<string, Dictionary<MongoId, MongoId>> questAssort,
         string bucketName)
     {
-        if (!questAssort.ContainsKey(bucketName) || questAssort[bucketName] == null)
+        if (!questAssort.TryGetValue(bucketName, out Dictionary<MongoId, MongoId>? value) || value == null)
         {
-            questAssort[bucketName] = new Dictionary<MongoId, MongoId>();
+            value = [];
+            questAssort[bucketName] = value;
         }
     }
 
