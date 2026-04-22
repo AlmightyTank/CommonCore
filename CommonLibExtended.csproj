@@ -21,7 +21,6 @@
 
 	<ItemGroup>
 	  <Folder Include="Traders\Models\" />
-	  <Folder Include="Traders\Helpers\" />
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
