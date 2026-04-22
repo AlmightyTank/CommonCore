@@ -5,7 +5,7 @@ using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Services;
 
-namespace CommonLibExtended.Traders.Helpers;
+namespace CommonLibExtended.Traders.TraderHelpers;
 
 [Injectable]
 public sealed class CustomTraderHelper(
