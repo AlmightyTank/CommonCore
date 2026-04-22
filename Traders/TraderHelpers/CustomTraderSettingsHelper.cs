@@ -16,6 +16,10 @@ public sealed class CustomTraderSettingsHelper(
     DebugLogHelper logger,
     ConfigServer configServer)
 {
+    private const string RubTpl = "5449016a4bdc2d6f028b456f";
+    private const string UsdTpl = "5696686a4bdc2da3298b456a";
+    private const string EurTpl = "569668774bdc2da2298b4568";
+
     private readonly DebugLogHelper _log = logger;
     private readonly DatabaseService _databaseService = databaseService;
     private readonly ConfigServer _configServer = configServer;
@@ -35,7 +39,7 @@ public sealed class CustomTraderSettingsHelper(
         var skippedBecauseInvalidOverride = 0;
         var skippedBecauseNoAssortPrice = 0;
 
-        var currencyTpl = GetCurrencyTpl(settings.Currency);
+        var targetCurrencyTpl = GetCurrencyTpl(settings.Currency);
 
         foreach (var item in assort.Items)
         {
@@ -98,15 +102,16 @@ public sealed class CustomTraderSettingsHelper(
                 continue;
             }
 
-            var currentAssortPrice = GetCurrentAssortPrice(assort, item.Id);
-            if (currentAssortPrice <= 0)
+            var rubBasePrice = GetCurrentAssortPriceInRub(assort, item.Id);
+            if (rubBasePrice <= 0)
             {
                 skippedOffers++;
                 skippedBecauseNoAssortPrice++;
                 continue;
             }
 
-            var finalPrice = Math.Max(1, Math.Round(currentAssortPrice * settings.PriceMultiplier));
+            var multipliedRubPrice = Math.Max(1, Math.Round(rubBasePrice * settings.PriceMultiplier));
+            var finalCurrencyAmount = ConvertRubToTargetCurrencyAmount(multipliedRubPrice, targetCurrencyTpl);
 
             assort.BarterScheme[item.Id] =
             [
@@ -114,8 +119,8 @@ public sealed class CustomTraderSettingsHelper(
                 {
                     new()
                     {
-                        Template = currencyTpl,
-                        Count = finalPrice
+                        Template = targetCurrencyTpl,
+                        Count = finalCurrencyAmount
                     }
                 }
             ];
@@ -126,7 +131,7 @@ public sealed class CustomTraderSettingsHelper(
             {
                 _log.LogService(
                     nameof(CustomTraderSettingsHelper),
-                    $"Applied currency price for assortId={item.Id}: currency={settings.Currency}, _tpl={currencyTpl}, basePrice={currentAssortPrice}, finalPrice={finalPrice}",
+                    $"Applied currency price for assortId={item.Id}: currency={settings.Currency}, _tpl={targetCurrencyTpl}, rubBasePrice={rubBasePrice}, multipliedRubPrice={multipliedRubPrice}, finalCurrencyAmount={finalCurrencyAmount}",
                     nameof(ApplyPricing));
             }
         }
@@ -140,7 +145,7 @@ public sealed class CustomTraderSettingsHelper(
         }
     }
 
-    private double GetCurrentAssortPrice(TraderAssort assort, string assortId)
+    private double GetCurrentAssortPriceInRub(TraderAssort assort, string assortId)
     {
         if (!assort.BarterScheme.TryGetValue(assortId, out var schemeLists) ||
             schemeLists == null ||
@@ -155,28 +160,83 @@ public sealed class CustomTraderSettingsHelper(
             return 0;
         }
 
-        double total = 0;
+        double totalRubValue = 0;
 
         foreach (var entry in scheme)
         {
-            if (entry == null || entry.Count.HasValue != true || entry.Count.Value <= 0)
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Template) || entry.Count.HasValue != true || entry.Count.Value <= 0)
             {
                 continue;
             }
 
-            total += entry.Count.Value;
+            var entryRubValue = GetItemValueInRub(entry.Template);
+            if (entryRubValue <= 0)
+            {
+                continue;
+            }
+
+            totalRubValue += entryRubValue * entry.Count.Value;
         }
 
-        return total;
+        return Math.Round(totalRubValue);
+    }
+
+    private double GetItemValueInRub(string tpl)
+    {
+        if (string.IsNullOrWhiteSpace(tpl))
+        {
+            return 0;
+        }
+
+        if (tpl == RubTpl)
+        {
+            return 1;
+        }
+
+        var prices = _databaseService.GetTables()?.Templates?.Prices;
+        if (prices != null && prices.TryGetValue(tpl, out var fleaPrice) && fleaPrice > 0)
+        {
+            return fleaPrice;
+        }
+
+        var handbook = _databaseService.GetTables()?.Templates?.Handbook?.Items;
+        var handbookEntry = handbook?.FirstOrDefault(x => x != null && x.Id == tpl);
+        if (handbookEntry?.Price > 0)
+        {
+            return handbookEntry.Price ?? 0;
+        }
+
+        return 0;
+    }
+
+    private double ConvertRubToTargetCurrencyAmount(double rubAmount, string targetCurrencyTpl)
+    {
+        if (rubAmount <= 0)
+        {
+            return 0;
+        }
+
+        if (targetCurrencyTpl == RubTpl)
+        {
+            return Math.Max(1, Math.Round(rubAmount));
+        }
+
+        var targetCurrencyRubValue = GetItemValueInRub(targetCurrencyTpl);
+        if (targetCurrencyRubValue <= 0)
+        {
+            return Math.Max(1, Math.Round(rubAmount));
+        }
+
+        return Math.Max(1, Math.Round(rubAmount / targetCurrencyRubValue));
     }
 
     private static string GetCurrencyTpl(string currency)
     {
         return (currency ?? "RUB").Trim().ToUpperInvariant() switch
         {
-            "USD" => "5696686a4bdc2da3298b456a",
-            "EUR" => "569668774bdc2da2298b4568",
-            _ => "5449016a4bdc2d6f028b456f"
+            "USD" => UsdTpl,
+            "EUR" => EurTpl,
+            _ => RubTpl
         };
     }
 

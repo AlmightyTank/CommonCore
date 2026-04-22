@@ -21,7 +21,7 @@ public sealed class AssortBarterOverride
         BarterSettings = BarterSettings?
             .Where(x =>
                 x != null &&
-                !string.IsNullOrWhiteSpace(x._tpl) &&
+                !string.IsNullOrWhiteSpace(x.Template) &&
                 x.Count > 0)
             .ToList() ?? [];
 
@@ -37,11 +37,11 @@ public sealed class AssortBarterOverride
         return BarterSettings
             .Where(x =>
                 x != null &&
-                !string.IsNullOrWhiteSpace(x._tpl) &&
+                !string.IsNullOrWhiteSpace(x.Template) &&
                 x.Count > 0)
             .Select(x => new BarterScheme
             {
-                Template = x._tpl,
+                Template = x.Template,
                 Count = x.Count
             })
             .ToList();
@@ -51,7 +51,7 @@ public sealed class AssortBarterOverride
 public sealed class BarterSettingEntry
 {
     [JsonPropertyName("_tpl")]
-    public string _tpl { get; set; } = string.Empty;
+    public string Template { get; set; } = string.Empty;
 
     [JsonPropertyName("count")]
     public double Count { get; set; }
