@@ -1,7 +1,7 @@
 using CommonLibExtended.Helpers;
 using CommonLibExtended.Models;
-using CommonLibExtended.Traders.Helpers;
 using CommonLibExtended.Traders.Models;
+using CommonLibExtended.Traders.TraderHelpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Spt.Config;

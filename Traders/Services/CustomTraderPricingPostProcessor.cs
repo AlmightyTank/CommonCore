@@ -1,5 +1,5 @@
 using CommonLibExtended.Helpers;
-using CommonLibExtended.Traders.Helpers;
+using CommonLibExtended.Traders.TraderHelpers;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Services;
