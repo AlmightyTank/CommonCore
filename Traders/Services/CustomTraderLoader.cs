@@ -1,5 +1,4 @@
 using CommonLibExtended.Helpers;
-using CommonLibExtended.Models;
 using CommonLibExtended.Traders.Models;
 using CommonLibExtended.Traders.TraderHelpers;
 using SPTarkov.DI.Annotations;

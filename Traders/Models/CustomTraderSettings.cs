@@ -4,11 +4,14 @@ namespace CommonLibExtended.Traders.Models;
 
 public sealed class CustomTraderSettings
 {
+    [JsonPropertyName("debugLogging")]
+    public bool DebugLogging { get; set; } = false;
+
     [JsonPropertyName("minLevel")]
     public int MinLevel { get; set; } = 1;
 
     [JsonPropertyName("unlockedByDefault")]
-    public bool UnlockedByDefault { get; set; }
+    public bool UnlockedByDefault { get; set; } = false;
 
     [JsonPropertyName("traderRefreshMin")]
     public int TraderRefreshMin { get; set; } = 1800;
@@ -17,171 +20,86 @@ public sealed class CustomTraderSettings
     public int TraderRefreshMax { get; set; } = 3600;
 
     [JsonPropertyName("addTraderToFleaMarket")]
-    public bool AddTraderToFleaMarket { get; set; } = true;
+    public bool AddTraderToFleaMarket { get; set; } = false;
 
     [JsonPropertyName("insurancePriceCoef")]
-    public double InsurancePriceCoef { get; set; } = 50;
+    public double InsurancePriceCoef { get; set; } = 1.0;
 
     [JsonPropertyName("repairQuality")]
-    public double RepairQuality { get; set; } = 0.8;
+    public double RepairQuality { get; set; } = 1.0;
 
     [JsonPropertyName("randomizeStockAvailable")]
-    public bool RandomizeStockAvailable { get; set; }
+    public bool RandomizeStockAvailable { get; set; } = false;
 
     [JsonPropertyName("outOfStockChance")]
-    public int OutOfStockChance { get; set; } = 15;
+    public int OutOfStockChance { get; set; } = 0;
 
     [JsonPropertyName("unlimitedStock")]
-    public bool UnlimitedStock { get; set; } = true;
+    public bool UnlimitedStock { get; set; } = false;
 
     [JsonPropertyName("priceMultiplier")]
     public double PriceMultiplier { get; set; } = 1.0;
 
-    [JsonPropertyName("debugLogging")]
-    public bool DebugLogging { get; set; }
+    [JsonPropertyName("currency")]
+    public string Currency { get; set; } = "RUB";
 
-    // NEW
-    [JsonPropertyName("useBasePriceGeneration")]
-    public bool UseBasePriceGeneration { get; set; } = false;
-
-    [JsonPropertyName("basePriceSource")]
-    public string BasePriceSource { get; set; } = "Handbook";
-
-    [JsonPropertyName("basePriceMultiplier")]
-    public double BasePriceMultiplier { get; set; } = 1.0;
-
-    [JsonPropertyName("basePriceFloor")]
-    public double BasePriceFloor { get; set; } = 1.0;
-
-    [JsonPropertyName("repriceCashOffersOnly")]
-    public bool RepriceCashOffersOnly { get; set; } = true;
-
-    [JsonPropertyName("useFleaPricing")]
-    public bool UseFleaPricing { get; set; } = false;
-
-    [JsonPropertyName("fleaWeight")]
-    public double FleaWeight { get; set; } = 0.3;
-
-    [JsonPropertyName("handbookWeight")]
-    public double HandbookWeight { get; set; } = 0.7;
-
-    [JsonPropertyName("useAttachmentPricing")]
-    public bool UseAttachmentPricing { get; set; } = true;
-
-    [JsonPropertyName("useAttachmentWeighting")]
-    public bool UseAttachmentWeighting { get; set; } = false;
-
-    [JsonPropertyName("minAttachmentPrice")]
-    public double MinAttachmentPrice { get; set; } = 1000;
-
-    [JsonPropertyName("attachmentCategoryMultipliers")]
-    public Dictionary<string, double> AttachmentCategoryMultipliers { get; set; } = [];
-
-    [JsonPropertyName("rebuildItemBarters")]
-    public bool RebuildItemBarters { get; set; } = false;
-
-    [JsonPropertyName("barterValueTolerance")]
-    public double BarterValueTolerance { get; set; } = 0.15;
-
-    [JsonPropertyName("maxBarterComponents")]
-    public int MaxBarterComponents { get; set; } = 3;
-
-    [JsonPropertyName("preferredBarterTpls")]
-    public List<string> PreferredBarterTpls { get; set; } = [];
-
-    [JsonPropertyName("categoryBasePrices")]
-    public Dictionary<string, double> CategoryBasePrices { get; set; } = [];
-
-    [JsonPropertyName("rarityMultipliers")]
-    public Dictionary<string, double>? RarityMultipliers { get; set; } = [];
-
-    [JsonPropertyName("weaponBasePriceMultiplier")]
-    public double WeaponBasePriceMultiplier { get; set; } = 0.6;
-
-    [JsonPropertyName("pistolBasePriceMultiplier")]
-    public double PistolBasePriceMultiplier { get; set; } = 0.75;
-
-    [JsonPropertyName("countOnlyWeaponRelevantAttachments")]
-    public bool CountOnlyWeaponRelevantAttachments { get; set; } = true;
-
-    [JsonPropertyName("weaponRelevantAttachmentParents")]
-    public List<string> WeaponRelevantAttachmentParents { get; set; } = new();
+    [JsonPropertyName("assortBarterOverrides")]
+    public AssortBarterOverrideContainer AssortBarterOverrides { get; set; } = new();
 
     public void Validate(string traderId)
     {
+        if (string.IsNullOrWhiteSpace(traderId))
+        {
+            throw new InvalidOperationException("Trader settings validation failed because traderId was null or empty.");
+        }
+
         if (MinLevel < 1)
         {
-            throw new InvalidDataException($"[{traderId}] minLevel must be >= 1");
+            MinLevel = 1;
         }
 
         if (TraderRefreshMin < 1)
         {
-            throw new InvalidDataException($"[{traderId}] traderRefreshMin must be >= 1");
+            TraderRefreshMin = 1;
         }
 
         if (TraderRefreshMax < TraderRefreshMin)
         {
-            throw new InvalidDataException($"[{traderId}] traderRefreshMax must be >= traderRefreshMin");
+            TraderRefreshMax = TraderRefreshMin;
         }
 
         if (InsurancePriceCoef < 0)
         {
-            throw new InvalidDataException($"[{traderId}] insurancePriceCoef must be >= 0");
+            InsurancePriceCoef = 0;
         }
 
-        if (RepairQuality < 0 || RepairQuality > 1)
+        if (RepairQuality < 0)
         {
-            throw new InvalidDataException($"[{traderId}] repairQuality must be between 0 and 1");
+            RepairQuality = 0;
         }
 
-        if (OutOfStockChance < 0 || OutOfStockChance > 100)
+        if (OutOfStockChance < 0)
         {
-            throw new InvalidDataException($"[{traderId}] outOfStockChance must be between 0 and 100");
+            OutOfStockChance = 0;
+        }
+
+        if (OutOfStockChance > 100)
+        {
+            OutOfStockChance = 100;
         }
 
         if (PriceMultiplier <= 0)
         {
-            throw new InvalidDataException($"[{traderId}] priceMultiplier must be > 0");
+            PriceMultiplier = 1.0;
         }
 
-        if (BasePriceMultiplier <= 0)
+        Currency = (Currency ?? "RUB").Trim().ToUpperInvariant();
+        if (Currency is not ("RUB" or "USD" or "EUR"))
         {
-            throw new InvalidDataException($"[{traderId}] basePriceMultiplier must be > 0");
+            Currency = "RUB";
         }
 
-        if (BasePriceFloor < 0)
-        {
-            throw new InvalidDataException($"[{traderId}] basePriceFloor must be >= 0");
-        }
-
-        if (BarterValueTolerance < 0 || BarterValueTolerance > 1)
-        {
-            throw new InvalidDataException($"[{traderId}] barterValueTolerance must be between 0 and 1");
-        }
-
-        if (MaxBarterComponents < 1)
-        {
-            throw new InvalidDataException($"[{traderId}] maxBarterComponents must be >= 1");
-        }
-
-        if (CategoryBasePrices.Values.Any(x => x < 0))
-        {
-            throw new InvalidDataException($"[{traderId}] categoryBasePrices cannot contain negative values");
-        }
-
-        if (RarityMultipliers.Values.Any(x => x <= 0))
-        {
-            throw new InvalidDataException($"[{traderId}] rarityMultipliers must be > 0");
-        }
-
-        if (WeaponBasePriceMultiplier < 0 || WeaponBasePriceMultiplier > 2)
-        {
-            throw new InvalidDataException($"[{traderId}] weaponBasePriceMultiplier must be between 0 and 2");
-        }
-
-        if (PistolBasePriceMultiplier < 0 || PistolBasePriceMultiplier > 2)
-        {
-            throw new InvalidDataException($"[{traderId}] pistolBasePriceMultiplier must be between 0 and 2");
-        }
+        AssortBarterOverrides ??= new AssortBarterOverrideContainer();
+        AssortBarterOverrides.Build(traderId);
     }
 }
