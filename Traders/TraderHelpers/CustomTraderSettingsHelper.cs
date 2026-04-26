@@ -111,18 +111,34 @@ public sealed class CustomTraderSettingsHelper(
             }
 
             var multipliedRubPrice = Math.Max(1, Math.Round(rubBasePrice * settings.PriceMultiplier));
+
+            if (!settings.EnableCurrency)
+            {
+                // 🔹 Keep original barter, do NOT convert
+                if (settings.DebugLogging)
+                {
+                    _log.LogService(
+                        nameof(CustomTraderSettingsHelper),
+                        $"Skipped currency conversion for assortId={item.Id}, EnableCurrency=false, basePrice={rubBasePrice}, multiplied={multipliedRubPrice}",
+                        nameof(ApplyPricing));
+                }
+
+                ScaleExistingBarter(assort, item.Id, settings.PriceMultiplier);
+                continue;
+            }
+
+            // 🔹 Convert to selected currency
             var finalCurrencyAmount = ConvertRubToTargetCurrencyAmount(multipliedRubPrice, targetCurrencyTpl);
 
             assort.BarterScheme[item.Id] =
             [
-                new List<BarterScheme>
-                {
+                [
                     new()
                     {
                         Template = targetCurrencyTpl,
                         Count = finalCurrencyAmount
                     }
-                }
+                ]
             ];
 
             appliedCurrencyPrices++;
@@ -142,6 +158,27 @@ public sealed class CustomTraderSettingsHelper(
                 nameof(CustomTraderSettingsHelper),
                 $"ApplyPricing → appliedManualOverrides={appliedManualOverrides}, appliedCurrencyPrices={appliedCurrencyPrices}, skippedOffers={skippedOffers}, skippedBecauseMissingScheme={skippedBecauseMissingScheme}, skippedBecauseMissingLoyalty={skippedBecauseMissingLoyalty}, skippedBecauseInvalidOverride={skippedBecauseInvalidOverride}, skippedBecauseNoAssortPrice={skippedBecauseNoAssortPrice}",
                 nameof(ApplyPricing));
+        }
+    }
+
+    private void ScaleExistingBarter(TraderAssort assort, string assortId, double multiplier)
+    {
+        if (!assort.BarterScheme.TryGetValue(assortId, out var schemeLists) ||
+            schemeLists == null ||
+            schemeLists.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var scheme in schemeLists)
+        {
+            foreach (var entry in scheme)
+            {
+                if (entry?.Count.HasValue == true)
+                {
+                    entry.Count = Math.Max(1, Math.Round(entry.Count.Value * multiplier));
+                }
+            }
         }
     }
 

@@ -40,6 +40,9 @@ public sealed class CustomTraderSettings
     [JsonPropertyName("priceMultiplier")]
     public double PriceMultiplier { get; set; } = 1.0;
 
+    [JsonPropertyName("enableCurrency")]
+    public bool EnableCurrency { get; set; } = false;
+
     [JsonPropertyName("currency")]
     public string Currency { get; set; } = "RUB";
 
